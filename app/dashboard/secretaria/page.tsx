@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Users, FileText, Plus, Upload, Trash2, Search, Filter, BookOpen, Award } from "lucide-react"
+import { Users, FileText, Plus, Upload, Trash2, Search, Filter, BookOpen, Award, Shield } from "lucide-react"
 
 // --- Dados Mockados ---
 const membrosMock = [
@@ -158,6 +159,98 @@ function GerenciarAssociacoes() {
   )
 }
 
+function SentinelasTab() {
+  const [selectedEspecialidade, setSelectedEspecialidade] = useState<string | undefined>();
+  const [selectedClasse, setSelectedClasse] = useState<string | undefined>();
+  const [sentinelasEspecialidade, setSentinelasEspecialidade] = useState<number[]>([]);
+  const [sentinelasClasse, setSentinelasClasse] = useState<number[]>([]);
+
+  const handleEspecialidadeCheck = (memberId: number) => {
+    setSentinelasEspecialidade(prev =>
+        prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]
+    );
+  };
+
+  const handleClasseCheck = (memberId: number) => {
+    setSentinelasClasse(prev =>
+        prev.includes(memberId) ? prev.filter(id => id !== memberId) : [...prev, memberId]
+    );
+  };
+
+  return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Sentinelas de Especialidade</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Especialidade</Label>
+              <Select onValueChange={setSelectedEspecialidade}>
+                <SelectTrigger><SelectValue placeholder="Selecione uma especialidade..." /></SelectTrigger>
+                <SelectContent>
+                  {especialidadesMock.map(esp => <SelectItem key={esp.id} value={esp.id.toString()}>{esp.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedEspecialidade && (
+                <div className="space-y-2">
+                  <Label>Selecione os Membros</Label>
+                  <div className="p-3 border rounded-md max-h-48 overflow-y-auto">
+                    {membrosMock.map(membro => (
+                        <div key={membro.id} className="flex items-center space-x-2 my-1">
+                          <Checkbox
+                              id={`esp-${membro.id}`}
+                              checked={sentinelasEspecialidade.includes(membro.id)}
+                              onCheckedChange={() => handleEspecialidadeCheck(membro.id)}
+                          />
+                          <Label htmlFor={`esp-${membro.id}`}>{membro.nome}</Label>
+                        </div>
+                    ))}
+                  </div>
+                </div>
+            )}
+            <Button disabled={!selectedEspecialidade}>Salvar Sentinelas</Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Sentinelas de Classe</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Classe</Label>
+              <Select onValueChange={setSelectedClasse}>
+                <SelectTrigger><SelectValue placeholder="Selecione uma classe..." /></SelectTrigger>
+                <SelectContent>
+                  {classesMock.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedClasse && (
+                <div className="space-y-2">
+                  <Label>Selecione os Membros</Label>
+                  <div className="p-3 border rounded-md max-h-48 overflow-y-auto">
+                    {membrosMock.map(membro => (
+                        <div key={membro.id} className="flex items-center space-x-2 my-1">
+                          <Checkbox
+                              id={`cls-${membro.id}`}
+                              checked={sentinelasClasse.includes(membro.id)}
+                              onCheckedChange={() => handleClasseCheck(membro.id)}
+                          />
+                          <Label htmlFor={`cls-${membro.id}`}>{membro.nome}</Label>
+                        </div>
+                    ))}
+                  </div>
+                </div>
+            )}
+            <Button disabled={!selectedClasse}>Salvar Sentinelas</Button>
+          </CardContent>
+        </Card>
+      </div>
+  );
+}
 
 export default function SecretariaPage() {
   const [membros] = useState(membrosMock)
@@ -168,7 +261,7 @@ export default function SecretariaPage() {
   const membrosFiltrados = membros.filter((membro) => {
     const matchesSearch =
         membro.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        membro.cpf.includes(searchTerm) ||
+        (membro.cpf && membro.cpf.includes(searchTerm)) ||
         membro.codigo_sgc.includes(searchTerm)
 
     const matchesUnidade = filtroUnidade === "todas" || membro.unidade === filtroUnidade
@@ -249,6 +342,7 @@ export default function SecretariaPage() {
               <CardHeader><CardTitle className="flex items-center gap-2"><FileText /> Atas e Atos</CardTitle></CardHeader>
               <CardContent>
                 {/* Conteúdo existente da aba de Atas */}
+                <p>Em breve.</p>
               </CardContent>
             </Card>
           </TabsContent>
@@ -277,7 +371,7 @@ export default function SecretariaPage() {
           </TabsContent>
 
           <TabsContent value="sentinelas" className="space-y-4">
-            <Card><CardHeader><CardTitle>Sentinelas</CardTitle></CardHeader><CardContent><p>Em breve.</p></CardContent></Card>
+            <SentinelasTab />
           </TabsContent>
         </Tabs>
       </div>
