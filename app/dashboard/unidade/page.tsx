@@ -2,337 +2,321 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { BarChart3, Users, Award } from "lucide-react"
+
+// --- Dados Mockados ---
+const unidadesMock = [
+  { id: "jaguar", nome: "Jaguar", pontuacao: 85, codigo_classe_regular: "AM-001", codigo_classe_avancada: "AM-A-001" },
+  { id: "gato-mato", nome: "Gato do Mato", pontuacao: 72, codigo_classe_regular: "CP-002", codigo_classe_avancada: "CP-A-002" },
+]
+
+const membrosMock = [
+  { id: 1, codigo_sgc: "12345", nome: "João Silva", cargo: "Desbravador", id_unidade: "jaguar" },
+  { id: 2, codigo_sgc: "54321", nome: "Maria Santos", cargo: "Conselheiro", id_unidade: "jaguar" },
+  { id: 3, codigo_sgc: "67890", nome: "Pedro Costa", cargo: "Desbravador", id_unidade: "gato-mato" },
+]
+
+const requisitosClassesMock = [
+  { id: 101, secao: "Geral", texto: "Ser membro ativo do Clube.", codigo_classe: "AM-001" },
+  { id: 102, secao: "Descoberta Espiritual", texto: "Memorizar Voto e Lei.", codigo_classe: "AM-001" },
+  { id: 201, secao: "Geral", texto: "Requisito avançado de Amigo.", codigo_classe: "AM-A-001" },
+  { id: 301, secao: "Geral", texto: "Ser membro ativo do Clube.", codigo_classe: "CP-002" },
+]
+
+const avaliacaoClassesInitialMock = [
+  { id: 1, id_requisito: 101, codigo_sgc: "12345", status: "Aprovado" },
+]
+
+const especialidadesMock = [
+  { id: 1, nome: "Internet", membros: ["João Silva", "Pedro Costa"], status: "aprovado" },
+  { id: 2, nome: "Primeiros Socorros", membros: ["Maria Santos"], status: "avaliacao" },
+]
+// --- Fim dos Dados Mockados ---
 
 export default function UnidadePage() {
   const [unidadeSelecionada, setUnidadeSelecionada] = useState("jaguar")
+  const [avaliacaoClasses, setAvaliacaoClasses] = useState(avaliacaoClassesInitialMock)
+  const [requisitoSelecionado, setRequisitoSelecionado] = useState<string | undefined>()
 
-  const unidades = [
-    { id: "jaguar", nome: "Jaguar", pontuacao: 85 },
-    { id: "gato-mato", nome: "Gato do Mato", pontuacao: 72 },
-  ]
+  const unidadeAtual = unidadesMock.find((u) => u.id === unidadeSelecionada)
+  const membrosDaUnidade = membrosMock.filter((m) => m.id_unidade === unidadeSelecionada)
 
-  const membrosUnidade = [
-    { id: 1, nome: "João Silva", cargo: "Desbravador", sgc: "12345" },
-    { id: 2, nome: "Maria Santos", cargo: "Conselheiro", sgc: "54321" },
-    { id: 3, nome: "Pedro Costa", cargo: "Desbravador", sgc: "67890" },
-  ]
+  const codigosClasse = [unidadeAtual?.codigo_classe_regular, unidadeAtual?.codigo_classe_avancada].filter(Boolean)
+  const requisitosDaUnidade = requisitosClassesMock.filter(req => codigosClasse.includes(req.codigo_classe))
 
-  const requisitos = [
-    { id: 1, nome: "Req 1", status: "pendente", classe: "Regular" },
-    { id: 2, nome: "Req 2", status: "aprovado", classe: "Regular" },
-    { id: 3, nome: "Req 3", status: "avaliacao", classe: "Avançada" },
-  ]
+  const handleAdicionarRequisitoPendente = () => {
+    if (!requisitoSelecionado) {
+      alert("Por favor, selecione um requisito.");
+      return;
+    }
 
-  const especialidades = [
-    { id: 1, nome: "Internet", membros: ["João Silva", "Pedro Costa"], status: "aprovado" },
-    { id: 2, nome: "Primeiros Socorros", membros: ["Maria Santos"], status: "avaliacao" },
-  ]
+    const requisitoId = parseInt(requisitoSelecionado);
+    let novasAvaliacoes = [...avaliacaoClasses];
+
+    membrosDaUnidade.forEach(membro => {
+      const jaExiste = novasAvaliacoes.some(a =>
+          a.codigo_sgc === membro.codigo_sgc && a.id_requisito === requisitoId
+      );
+
+      if (!jaExiste) {
+        novasAvaliacoes.push({
+          id: Date.now() + Math.random(),
+          id_requisito: requisitoId,
+          codigo_sgc: membro.codigo_sgc,
+          status: "Pendente",
+        });
+      }
+    });
+
+    setAvaliacaoClasses(novasAvaliacoes);
+    alert("Requisito adicionado como pendente para todos os membros da unidade!");
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Unidade</h1>
-          <p className="text-muted-foreground">Gerencie sua unidade e acompanhe o progresso</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Unidade</h1>
+            <p className="text-muted-foreground">Gerencie sua unidade e acompanhe o progresso</p>
+          </div>
+          <Select value={unidadeSelecionada} onValueChange={setUnidadeSelecionada}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {unidadesMock.map((unidade) => (
+                  <SelectItem key={unidade.id} value={unidade.id}>
+                    {unidade.nome}
+                  </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={unidadeSelecionada} onValueChange={setUnidadeSelecionada}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {unidades.map((unidade) => (
-              <SelectItem key={unidade.id} value={unidade.id}>
-                {unidade.nome}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pontuação</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{unidades.find((u) => u.id === unidadeSelecionada)?.pontuacao}</div>
-            <Progress value={unidades.find((u) => u.id === unidadeSelecionada)?.pontuacao} className="mt-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Membros</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{membrosUnidade.length}</div>
-            <p className="text-xs text-muted-foreground">Ativos na unidade</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Especialidades</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{especialidades.length}</div>
-            <p className="text-xs text-muted-foreground">Em andamento</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="pontuacao" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="pontuacao">Pontuação</TabsTrigger>
-          <TabsTrigger value="classe">Classe</TabsTrigger>
-          <TabsTrigger value="membros">Membros</TabsTrigger>
-          <TabsTrigger value="progresso-classe">Progresso de classe</TabsTrigger>
-          <TabsTrigger value="progresso-especialidade">Progresso de especialidade</TabsTrigger>
-          <TabsTrigger value="atos">Atos</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pontuacao" className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-3">
           <Card>
-            <CardHeader>
-              <CardTitle>Pontuação da Unidade</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pontuação</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {unidades.map((unidade) => (
-                  <div key={unidade.id} className="flex items-center justify-between p-4 border rounded">
-                    <span className="font-medium">{unidade.nome}</span>
-                    <div className="flex items-center gap-4">
-                      <Progress value={unidade.pontuacao} className="w-32" />
-                      <span className="font-bold">{unidade.pontuacao}</span>
-                    </div>
-                  </div>
+              <div className="text-2xl font-bold">{unidadeAtual?.pontuacao}</div>
+              <Progress value={unidadeAtual?.pontuacao} className="mt-2" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Membros</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{membrosDaUnidade.length}</div>
+              <p className="text-xs text-muted-foreground">Ativos na unidade</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Especialidades</CardTitle>
+              <Award className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{especialidadesMock.length}</div>
+              <p className="text-xs text-muted-foreground">Em andamento</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Tabs defaultValue="progresso-classe" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="pontuacao">Pontuação</TabsTrigger>
+            <TabsTrigger value="membros">Membros</TabsTrigger>
+            <TabsTrigger value="progresso-classe">Progresso de Classe</TabsTrigger>
+            <TabsTrigger value="progresso-especialidade">Especialidades</TabsTrigger>
+            <TabsTrigger value="atos">Atos</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pontuacao" className="space-y-4">
+            <Card>
+              <CardHeader><CardTitle>Pontuação da Unidade</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {unidadesMock.map((unidade) => (
+                      <div key={unidade.id} className="flex items-center justify-between p-4 border rounded">
+                        <span className="font-medium">{unidade.nome}</span>
+                        <div className="flex items-center gap-4">
+                          <Progress value={unidade.pontuacao} className="w-32" />
+                          <span className="font-bold">{unidade.pontuacao}</span>
+                        </div>
+                      </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="membros" className="space-y-4">
+            <Card>
+              <CardHeader><CardTitle>Membros da Unidade</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {membrosDaUnidade.map((membro) => (
+                    <Card key={membro.id} className="p-4">
+                      <p className="font-semibold">{membro.nome}</p>
+                      <div className="text-sm text-muted-foreground">
+                        <span>{membro.cargo}</span> | <span>SGC: {membro.sgc}</span>
+                      </div>
+                    </Card>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        <TabsContent value="membros" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Membros da Unidade</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium mb-2">Cargo: Desbravador</h4>
-                  {membrosUnidade
-                    .filter((m) => m.cargo === "Desbravador")
-                    .map((membro) => (
-                      <div key={membro.id} className="ml-4 p-2 bg-gray-50 rounded mb-2">
-                        - {membro.nome} (SGC: {membro.sgc})
-                      </div>
-                    ))}
-                </div>
-                <div>
-                  <h4 className="font-medium mb-2">Cargo: Conselheiro</h4>
-                  {membrosUnidade
-                    .filter((m) => m.cargo === "Conselheiro")
-                    .map((membro) => (
-                      <div key={membro.id} className="ml-4 p-2 bg-gray-50 rounded mb-2">
-                        - {membro.nome} (SGC: {membro.sgc})
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="progresso-classe" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Progresso de Classes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium mb-2">Requisitos Pendentes</h4>
-                  <div className="space-y-2">
-                    <div>
-                      <span className="font-medium">Regular</span>
-                      <div className="ml-4 space-y-1">
-                        {requisitos
-                          .filter((r) => r.classe === "Regular" && r.status === "pendente")
-                          .map((req) => (
-                            <div key={req.id} className="p-2 bg-yellow-50 rounded">
-                              {req.nome}
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="font-medium">Avançada</span>
-                      <div className="ml-4 space-y-1">
-                        {requisitos
-                          .filter((r) => r.classe === "Avançada" && r.status === "pendente")
-                          .map((req) => (
-                            <div key={req.id} className="p-2 bg-yellow-50 rounded">
-                              {req.nome}
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-2">Requisitos Aguardando Avaliação</h4>
-                  <div className="ml-4 space-y-1">
-                    {requisitos
-                      .filter((r) => r.status === "avaliacao")
-                      .map((req) => (
-                        <div key={req.id} className="p-2 bg-blue-50 rounded">
-                          - {req.nome}
-                        </div>
-                      ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-2">Aprovado</h4>
-                  <div className="ml-4 space-y-1">
-                    {requisitos
-                      .filter((r) => r.status === "aprovado")
-                      .map((req) => (
-                        <div key={req.id} className="p-2 bg-green-50 rounded">
-                          - {req.nome}
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="progresso-especialidade" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Registrar Especialidades</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Membros</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione os membros" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {membrosUnidade.map((membro) => (
-                        <SelectItem key={membro.id} value={membro.id.toString()}>
-                          {membro.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Especialidade</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a especialidade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="internet">Internet</SelectItem>
-                      <SelectItem value="primeiros-socorros">Primeiros Socorros</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button>Registrar</Button>
-
-              <div className="space-y-4">
-                <h4 className="font-medium">Visualização de Especialidades Registradas na Unidade</h4>
-                {especialidades.map((esp) => (
-                  <div key={esp.id} className="border rounded p-4">
-                    <h5 className="font-medium mb-2">{esp.nome}</h5>
-                    <div className="space-y-2">
-                      <div>
-                        <Badge variant={esp.status === "aprovado" ? "default" : "secondary"}>
-                          {esp.status === "aprovado" ? "Aprovado" : "Avaliação"}
-                        </Badge>
-                        <div className="ml-4 mt-1">
-                          {esp.membros.map((membro, index) => (
-                            <div key={index} className="text-sm">
-                              - {membro}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="atos" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Registrar Atos</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="titulo-ato">Título do Ato</Label>
-                <input id="titulo-ato" className="w-full p-2 border rounded" placeholder="Digite o título do ato" />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="descricao-ato">Descrição</Label>
-                <Textarea id="descricao-ato" placeholder="Descrição do ato" rows={4} />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Selecione a Ata</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Escolha uma ata" />
+          <TabsContent value="progresso-classe" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Adicionar Requisito para a Unidade</CardTitle>
+                <CardDescription>Selecione um requisito para marcar como "Pendente" para todos os membros da unidade.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center gap-2">
+                <Select onValueChange={setRequisitoSelecionado}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Selecione um requisito..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ata1">Ata da Reunião Geral</SelectItem>
-                    <SelectItem value="ata2">Ata do Treinamento</SelectItem>
+                    {requisitosDaUnidade.map(req => (
+                        <SelectItem key={req.id} value={req.id.toString()}>{req.texto}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-              </div>
+                <Button onClick={handleAdicionarRequisitoPendente}>Adicionar Pendência</Button>
+              </CardContent>
+            </Card>
 
-              <Button>Salvar ato</Button>
+            <div className="space-y-4">
+              {membrosDaUnidade.map(membro => {
+                const avaliacoesDoMembro = avaliacaoClasses.filter(a => a.codigo_sgc === membro.codigo_sgc);
+                const aprovadosCount = requisitosDaUnidade.filter(req => avaliacoesDoMembro.some(a => a.id_requisito === req.id && a.status === 'Aprovado')).length;
+                const progresso = requisitosDaUnidade.length > 0 ? (aprovadosCount / requisitosDaUnidade.length) * 100 : 0;
 
-              <div className="space-y-2">
-                <h4 className="font-medium">Atos Registrados</h4>
-                <div className="space-y-2">
-                  <div className="p-3 bg-gray-50 rounded">
-                    <strong>Especialidade Concluída</strong>
-                    <p className="text-sm text-muted-foreground">Internet - João Silva completou todos os requisitos</p>
-                  </div>
-                  <div className="p-3 bg-gray-50 rounded">
-                    <strong>Classe Investida</strong>
-                    <p className="text-sm text-muted-foreground">Maria Santos foi investida na classe Amigo</p>
-                  </div>
+                return (
+                    <Card key={membro.id}>
+                      <CardHeader>
+                        <div className="flex justify-between items-center">
+                          <CardTitle>{membro.nome}</CardTitle>
+                          <div className="text-sm text-muted-foreground">{aprovadosCount} de {requisitosDaUnidade.length} requisitos aprovados</div>
+                        </div>
+                        <Progress value={progresso} className="mt-2" />
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {requisitosDaUnidade.map(req => {
+                          const avaliacao = avaliacoesDoMembro.find(a => a.id_requisito === req.id);
+                          const status = avaliacao?.status || 'Pendente';
+                          const isRegular = req.codigo_classe === unidadeAtual?.codigo_classe_regular;
+                          return (
+                              <div key={req.id} className="flex items-center justify-between p-2 border rounded-md">
+                                <div>
+                                                <span className={`mr-2 text-xs font-semibold ${isRegular ? 'text-blue-600' : 'text-purple-600'}`}>
+                                                    {isRegular ? 'REGULAR' : 'AVANÇADO'}
+                                                </span>
+                                  <span>{req.texto}</span>
+                                </div>
+                                <Badge variant={
+                                  status === "Aprovado" ? "default" : status === "Avaliação" ? "secondary" : status === "Refazer" ? "destructive" : "outline"
+                                }>{status}</Badge>
+                              </div>
+                          )
+                        })}
+                      </CardContent>
+                    </Card>
+                )
+              })}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="progresso-especialidade" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Progresso de Especialidades</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <h4 className="font-medium mb-2">Especialidades em Andamento</h4>
+                  {especialidadesMock.map((esp) => (
+                      <div key={esp.id} className="border rounded p-4 mb-2">
+                        <div className="flex justify-between items-center">
+                          <h5 className="font-medium">{esp.nome}</h5>
+                          <Badge variant={esp.status === "aprovado" ? "default" : "secondary"}>
+                            {esp.status === "aprovado" ? "Aprovado" : "Em Avaliação"}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-2">
+                          <p className="font-semibold">Membros:</p>
+                          <ul className="list-disc pl-5">
+                            {esp.membros.map((membro, index) => <li key={index}>{membro}</li>)}
+                          </ul>
+                        </div>
+                      </div>
+                  ))}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+                <div className="pt-4 border-t">
+                  <h4 className="font-medium mb-2">Registrar Nova Especialidade</h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Membros</Label>
+                      <Select>
+                        <SelectTrigger><SelectValue placeholder="Selecione os membros" /></SelectTrigger>
+                        <SelectContent>
+                          {membrosDaUnidade.map((membro) => (
+                              <SelectItem key={membro.id} value={membro.id.toString()}>{membro.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Especialidade</Label>
+                      <Select>
+                        <SelectTrigger><SelectValue placeholder="Selecione a especialidade" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="internet">Internet</SelectItem>
+                          <SelectItem value="primeiros-socorros">Primeiros Socorros</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <Button className="mt-4">Registrar</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="atos" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Registrar Atos</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="titulo-ato">Título do Ato</Label>
+                  <Input id="titulo-ato" placeholder="Digite o título do ato" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="descricao-ato">Descrição</Label>
+                  <Textarea id="descricao-ato" placeholder="Descrição do ato" rows={4} />
+                </div>
+                <Button>Salvar ato</Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
   )
 }
