@@ -120,3 +120,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+.login-background {
+  background-image: url('https://sg.sdasystems.org/cms/logos_clubes/14062.jpg');
+  background-size: cover;
+  background-position: center;
+}

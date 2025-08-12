@@ -1,25 +1,40 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Users, Calendar, FileText, Award, BarChart3, Settings, LogOut, Menu, X, ClipboardCheck, GraduationCap, Star } from "lucide-react"
+import {
+  CalendarDays,
+  ClipboardPen, // Corrigido de ClipboardUser
+  Shield,
+  LayoutDashboard,
+  User,
+  DollarSign,
+  LifeBuoy,
+  ClipboardCheck,
+  Star,
+  Archive,
+  LogOut,
+  Menu,
+  X,
+  Award
+} from "lucide-react"
 
 const menuItems = [
-  { href: "/dashboard/reunioes", label: "Reuniões", icon: Calendar },
-  { href: "/dashboard/secretaria", label: "Secretaria", icon: FileText },
-  { href: "/dashboard/unidade", label: "Unidade", icon: Users },
-  { href: "/dashboard/dashboard-unidade", label: "Dashboard Unidade", icon: BarChart3 },
-  { href: "/dashboard/painel", label: "Meu Painel", icon: BarChart3 },
-  { href: "/dashboard/tesouraria", label: "Tesouraria", icon: Settings },
+  { href: "/dashboard/reunioes", label: "Reuniões", icon: CalendarDays },
+  { href: "/dashboard/secretaria", label: "Secretaria", icon: ClipboardPen }, // Corrigido
+  { href: "/dashboard/unidade", label: "Unidade", icon: Shield },
+  { href: "/dashboard/dashboard-unidade", label: "Dashboard Unidade", icon: LayoutDashboard },
+  { href: "/dashboard/painel", label: "Meu Painel", icon: User },
+  { href: "/dashboard/tesouraria", label: "Tesouraria", icon: DollarSign },
   { href: "/dashboard/apoio", label: "Apoio Regional", icon: Award },
   { href: "/dashboard/regional", label: "Avaliação Regional", icon: ClipboardCheck },
   { href: "/dashboard/pontuacao", label: "Pontuação", icon: Star },
+  { href: "/dashboard/patrimonio", label: "Patrimônio", icon: Archive },
 ]
 
 export default function DashboardLayout({

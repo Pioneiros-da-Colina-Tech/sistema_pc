@@ -1,6 +1,9 @@
+"use client"
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import Especialidade from "./components/especialidades" // <- MUDANÇA AQUI
-import Classe from "./components/classe"             // <- MUDANÇA AQUI
+import Especialidade from "./components/especialidades"
+import Classe from "./components/classe"
+import SentinelasDaColina from "./components/sentinelas" // <-- IMPORTAR NOVO COMPONENTE
 
 export default function RegionalPage() {
     return (
@@ -12,15 +15,19 @@ export default function RegionalPage() {
                 </p>
             </div>
             <Tabs defaultValue="especialidades">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3"> {/* <-- ALTERAR PARA grid-cols-3 */}
                     <TabsTrigger value="especialidades">Especialidades</TabsTrigger>
                     <TabsTrigger value="classes">Classes</TabsTrigger>
+                    <TabsTrigger value="sentinelas">Sentinelas da Colina</TabsTrigger> {/* <-- NOVA ABA */}
                 </TabsList>
                 <TabsContent value="especialidades">
                     <Especialidade />
                 </TabsContent>
                 <TabsContent value="classes">
                     <Classe />
+                </TabsContent>
+                <TabsContent value="sentinelas">
+                    <SentinelasDaColina /> {/* <-- CONTEÚDO DA NOVA ABA */}
                 </TabsContent>
             </Tabs>
         </div>

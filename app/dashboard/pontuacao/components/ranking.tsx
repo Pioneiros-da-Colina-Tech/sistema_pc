@@ -1,18 +1,23 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 
-// --- Dados Mockados ---
+// --- Dados Mockados (com a adição do campo 'cargo') ---
 const pontuacoesMock = [
-    { unidade: "Jaguar", nome: "João Silva", presenca: 10, pontualidade: 10, uniforme: 5, modestia: 10 },
-    { unidade: "Jaguar", nome: "Maria Santos", presenca: 8, pontualidade: 10, uniforme: 10, modestia: 10 },
-    { unidade: "Gato do Mato", nome: "Pedro Costa", presenca: 9, pontualidade: 8, uniforme: 10, modestia: 10 },
-    { unidade: "Gato do Mato", nome: "Ana Oliveira", presenca: 10, pontualidade: 10, uniforme: 10, modestia: 10 },
-    { unidade: "Jaguar", nome: "Carlos Ferreira", presenca: 7, pontualidade: 5, uniforme: 5, modestia: 8 },
+    { unidade: "Jaguar", nome: "João Silva", cargo: "Desbravador", presenca: 10, pontualidade: 10, uniforme: 5, modestia: 10 },
+    { unidade: "Jaguar", nome: "Maria Santos", cargo: "Conselheiro", presenca: 8, pontualidade: 10, uniforme: 10, modestia: 10 },
+    { unidade: "Gato do Mato", nome: "Pedro Costa", cargo: "Desbravador", presenca: 9, pontualidade: 8, uniforme: 10, modestia: 10 },
+    { unidade: "Gato do Mato", nome: "Ana Oliveira", cargo: "Desbravador", presenca: 10, pontualidade: 10, uniforme: 10, modestia: 10 },
+    { unidade: "Jaguar", nome: "Carlos Ferreira", cargo: "Diretor", presenca: 7, pontualidade: 5, uniforme: 5, modestia: 8 },
 ]
 
 export default function Ranking() {
+    const [filtroCargo, setFiltroCargo] = useState("todos")
+
     const rankingUnidades = pontuacoesMock.reduce((acc, curr) => {
         const total = curr.presenca + curr.pontualidade + curr.uniforme + curr.modestia
         if (!acc[curr.unidade]) {
@@ -25,11 +30,14 @@ export default function Ranking() {
     const sortedRanking = Object.entries(rankingUnidades).sort((a, b) => b[1] - a[1])
 
     const rankingIndividual = pontuacoesMock
+        .filter(membro => filtroCargo === "todos" || membro.cargo === filtroCargo)
         .map((m) => ({
             ...m,
             total: m.presenca + m.pontualidade + m.uniforme + m.modestia,
         }))
         .sort((a, b) => b.total - a.total)
+
+    const cargosDisponiveis = ["todos", ...Array.from(new Set(pontuacoesMock.map(p => p.cargo)))]
 
     return (
         <div className="space-y-6">
@@ -52,7 +60,24 @@ export default function Ranking() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>🏅 Ranking Individual de Membros</CardTitle>
+                    <div className="flex justify-between items-center">
+                        <CardTitle>🏅 Ranking Individual de Membros</CardTitle>
+                        <div className="w-64">
+                            <Label>Filtrar por Cargo</Label>
+                            <Select value={filtroCargo} onValueChange={setFiltroCargo}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {cargosDisponiveis.map(cargo => (
+                                        <SelectItem key={cargo} value={cargo}>
+                                            {cargo === "todos" ? "Todos os Cargos" : cargo}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="overflow-x-auto">
@@ -61,6 +86,7 @@ export default function Ranking() {
                             <tr>
                                 <th className="px-6 py-3">Nome</th>
                                 <th className="px-6 py-3">Unidade</th>
+                                <th className="px-6 py-3">Cargo</th>
                                 <th className="px-6 py-3 text-center">Presença</th>
                                 <th className="px-6 py-3 text-center">Pontualidade</th>
                                 <th className="px-6 py-3 text-center">Uniforme</th>
@@ -73,6 +99,7 @@ export default function Ranking() {
                                 <tr key={index} className="border-b">
                                     <td className="px-6 py-4 font-medium">{membro.nome}</td>
                                     <td className="px-6 py-4"><Badge variant="outline">{membro.unidade}</Badge></td>
+                                    <td className="px-6 py-4"><Badge variant="secondary">{membro.cargo}</Badge></td>
                                     <td className="px-6 py-4 text-center">{membro.presenca}</td>
                                     <td className="px-6 py-4 text-center">{membro.pontualidade}</td>
                                     <td className="px-6 py-4 text-center">{membro.uniforme}</td>

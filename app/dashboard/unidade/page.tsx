@@ -24,6 +24,12 @@ const membrosMock = [
   { id: 3, codigo_sgc: "67890", nome: "Pedro Costa", cargo: "Desbravador", id_unidade: "gato-mato" },
 ]
 
+const pontuacoesDetalhadasMock = [
+  { codigo_sgc: "12345", presenca: 40, pontualidade: 50, uniforme: 35, modestia: 40 },
+  { codigo_sgc: "54321", presenca: 48, pontualidade: 50, uniforme: 50, modestia: 50 },
+  { codigo_sgc: "67890", presenca: 45, pontualidade: 40, uniforme: 50, modestia: 50 },
+]
+
 const requisitosClassesMock = [
   { id: 101, secao: "Geral", texto: "Ser membro ativo do Clube.", codigo_classe: "AM-001" },
   { id: 102, secao: "Descoberta Espiritual", texto: "Memorizar Voto e Lei.", codigo_classe: "AM-001" },
@@ -136,6 +142,60 @@ export default function UnidadePage() {
             <TabsTrigger value="planejamento">Planejamento</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="pontuacao" className="space-y-4">
+            <Card>
+              <CardHeader><CardTitle>Pontuação Detalhada da Unidade: {unidadeAtual?.nome}</CardTitle></CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-xs text-muted-foreground uppercase bg-muted">
+                    <tr>
+                      <th className="px-6 py-3 text-left">Membro</th>
+                      <th className="px-6 py-3 text-center">Presença</th>
+                      <th className="px-6 py-3 text-center">Pontualidade</th>
+                      <th className="px-6 py-3 text-center">Uniforme</th>
+                      <th className="px-6 py-3 text-center">Modéstia</th>
+                      <th className="px-6 py-3 text-center">Total</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {membrosDaUnidade.map(membro => {
+                      const pontuacao = pontuacoesDetalhadasMock.find(p => p.codigo_sgc === membro.codigo_sgc);
+                      const total = pontuacao ? pontuacao.presenca + pontuacao.pontualidade + pontuacao.uniforme + pontuacao.modestia : 0;
+                      return (
+                          <tr key={membro.id} className="border-b">
+                            <td className="px-6 py-4 font-medium">{membro.nome}</td>
+                            <td className="px-6 py-4 text-center">{pontuacao?.presenca || 0}</td>
+                            <td className="px-6 py-4 text-center">{pontuacao?.pontualidade || 0}</td>
+                            <td className="px-6 py-4 text-center">{pontuacao?.uniforme || 0}</td>
+                            <td className="px-6 py-4 text-center">{pontuacao?.modestia || 0}</td>
+                            <td className="px-6 py-4 text-center font-bold text-primary">{total}</td>
+                          </tr>
+                      )
+                    })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="membros" className="space-y-4">
+            <Card>
+              <CardHeader><CardTitle>Membros da Unidade</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {membrosDaUnidade.map((membro) => (
+                    <Card key={membro.id} className="p-4">
+                      <p className="font-semibold">{membro.nome}</p>
+                      <div className="text-sm text-muted-foreground">
+                        <span>{membro.cargo}</span> | <span>SGC: {membro.sgc}</span>
+                      </div>
+                    </Card>
+                ))}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="progresso-classe" className="space-y-4">
             <Card>
               <CardHeader><CardTitle>Adicionar Requisito para a Unidade</CardTitle><CardDescription>Selecione um requisito para marcar como "Pendente" para todos os membros da unidade.</CardDescription></CardHeader>
@@ -169,6 +229,81 @@ export default function UnidadePage() {
             </div>
           </TabsContent>
 
+          <TabsContent value="progresso-especialidade" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Progresso de Especialidades</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <h4 className="font-medium mb-2">Especialidades em Andamento</h4>
+                  {especialidadesMock.map((esp) => (
+                      <div key={esp.id} className="border rounded p-4 mb-2">
+                        <div className="flex justify-between items-center">
+                          <h5 className="font-medium">{esp.nome}</h5>
+                          <Badge variant={esp.status === "aprovado" ? "default" : "secondary"}>
+                            {esp.status === "aprovado" ? "Aprovado" : "Em Avaliação"}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-2">
+                          <p className="font-semibold">Membros:</p>
+                          <ul className="list-disc pl-5">
+                            {esp.membros.map((membro, index) => <li key={index}>{membro}</li>)}
+                          </ul>
+                        </div>
+                      </div>
+                  ))}
+                </div>
+                <div className="pt-4 border-t">
+                  <h4 className="font-medium mb-2">Registrar Nova Especialidade</h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Membros</Label>
+                      <Select>
+                        <SelectTrigger><SelectValue placeholder="Selecione os membros" /></SelectTrigger>
+                        <SelectContent>
+                          {membrosDaUnidade.map((membro) => (
+                              <SelectItem key={membro.id} value={membro.id.toString()}>{membro.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Especialidade</Label>
+                      <Select>
+                        <SelectTrigger><SelectValue placeholder="Selecione a especialidade" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="internet">Internet</SelectItem>
+                          <SelectItem value="primeiros-socorros">Primeiros Socorros</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <Button className="mt-4">Registrar</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="atos" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Registrar Atos</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="titulo-ato">Título do Ato</Label>
+                  <Input id="titulo-ato" placeholder="Digite o título do ato" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="descricao-ato">Descrição</Label>
+                  <Textarea id="descricao-ato" placeholder="Descrição do ato" rows={4} />
+                </div>
+                <Button>Salvar ato</Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="planejamento" className="space-y-4">
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><BookOpen/> Planejamento de Reunião</CardTitle><CardDescription>Vincule um requisito de classe a uma reunião específica.</CardDescription></CardHeader>
@@ -200,12 +335,6 @@ export default function UnidadePage() {
               </CardContent>
             </Card>
           </TabsContent>
-
-          {/* As outras abas permanecem aqui */}
-          <TabsContent value="pontuacao"><Card><CardHeader><CardTitle>Pontuação</CardTitle></CardHeader><CardContent><p>Em breve.</p></CardContent></Card></TabsContent>
-          <TabsContent value="membros"><Card><CardHeader><CardTitle>Membros</CardTitle></CardHeader><CardContent><p>Em breve.</p></CardContent></Card></TabsContent>
-          <TabsContent value="progresso-especialidade"><Card><CardHeader><CardTitle>Especialidades</CardTitle></CardHeader><CardContent><p>Em breve.</p></CardContent></Card></TabsContent>
-          <TabsContent value="atos"><Card><CardHeader><CardTitle>Atos</CardTitle></CardHeader><CardContent><p>Em breve.</p></CardContent></Card></TabsContent>
         </Tabs>
       </div>
   )
