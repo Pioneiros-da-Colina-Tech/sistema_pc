@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Users, Award, Calendar, TrendingUp, BarChart3 } from "lucide-react"
+import { Users, Award, Calendar, TrendingUp, BarChart3, BookOpen, AlertTriangle } from "lucide-react"
 
 export default function DashboardUnidadePage() {
   const [unidadeSelecionada, setUnidadeSelecionada] = useState("jaguar")
@@ -19,8 +19,9 @@ export default function DashboardUnidadePage() {
       pontuacao: 85,
       especialidadesAndamento: 8,
       especialidadesConcluidas: 12,
-      classesAndamento: 5,
-      classesConcluidas: 7,
+      classesAndamento: 5, // Requisitos da classe que já foram iniciados
+      classesTotal: 12,     // Total de requisitos da classe
+      classesAtraso: 2,       // Requisitos planejados cuja data passou e não foram concluídos
       presencaMedia: 78,
       reunioesParticipadas: 10,
       totalReunioes: 12,
@@ -48,7 +49,8 @@ export default function DashboardUnidadePage() {
       especialidadesAndamento: 6,
       especialidadesConcluidas: 8,
       classesAndamento: 4,
-      classesConcluidas: 5,
+      classesTotal: 10,
+      classesAtraso: 1,
       presencaMedia: 85,
       reunioesParticipadas: 11,
       totalReunioes: 12,
@@ -70,257 +72,111 @@ export default function DashboardUnidadePage() {
   }
 
   const unidadeAtual = dadosUnidades[unidadeSelecionada as keyof typeof dadosUnidades]
+  const classesFaltantes = unidadeAtual.classesTotal - unidadeAtual.classesAndamento;
+  const progressoClasseGeral = (unidadeAtual.classesAndamento / unidadeAtual.classesTotal) * 100;
+
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard por Unidade</h1>
-          <p className="text-muted-foreground">Visão detalhada do desempenho da unidade</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard por Unidade</h1>
+            <p className="text-muted-foreground">Visão detalhada do desempenho da unidade</p>
+          </div>
+          <Select value={unidadeSelecionada} onValueChange={setUnidadeSelecionada}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="jaguar">Jaguar</SelectItem>
+              <SelectItem value="gato-mato">Gato do Mato</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={unidadeSelecionada} onValueChange={setUnidadeSelecionada}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="jaguar">Jaguar</SelectItem>
-            <SelectItem value="gato-mato">Gato do Mato</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
-      {/* Cards de Estatísticas Principais */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Membros</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{unidadeAtual.totalMembros}</div>
-            <div className="flex gap-2 text-xs text-muted-foreground mt-1">
-              <span>{unidadeAtual.desbravadores} Desbravadores</span>
-              <span>•</span>
-              <span>{unidadeAtual.conselheiros} Conselheiros</span>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Cards de Estatísticas Principais */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Membros</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader>
+            <CardContent><div className="text-2xl font-bold">{unidadeAtual.totalMembros}</div><div className="flex gap-2 text-xs text-muted-foreground mt-1"><span>{unidadeAtual.desbravadores} Desbravadores</span><span>•</span><span>{unidadeAtual.conselheiros} Conselheiros</span></div></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Pontuação</CardTitle><BarChart3 className="h-4 w-4 text-muted-foreground" /></CardHeader>
+            <CardContent><div className="text-2xl font-bold">{unidadeAtual.pontuacao}</div><Progress value={unidadeAtual.pontuacao} className="mt-2" /></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Presença Média</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader>
+            <CardContent><div className="text-2xl font-bold">{unidadeAtual.presencaMedia}%</div><p className="text-xs text-muted-foreground">{unidadeAtual.reunioesParticipadas}/{unidadeAtual.totalReunioes} reuniões</p></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Especialidades</CardTitle><Award className="h-4 w-4 text-muted-foreground" /></CardHeader>
+            <CardContent><div className="text-2xl font-bold">{unidadeAtual.especialidadesConcluidas}</div><p className="text-xs text-muted-foreground">{unidadeAtual.especialidadesAndamento} em andamento</p></CardContent>
+          </Card>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pontuação</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{unidadeAtual.pontuacao}</div>
-            <Progress value={unidadeAtual.pontuacao} className="mt-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Presença Média</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{unidadeAtual.presencaMedia}%</div>
-            <p className="text-xs text-muted-foreground">
-              {unidadeAtual.reunioesParticipadas}/{unidadeAtual.totalReunioes} reuniões
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Especialidades</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{unidadeAtual.especialidadesConcluidas}</div>
-            <p className="text-xs text-muted-foreground">{unidadeAtual.especialidadesAndamento} em andamento</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Gráficos e Progresso */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Progresso de Classes e Especialidades</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium">Classes</span>
-                <span className="text-sm text-muted-foreground">
-                  {unidadeAtual.classesConcluidas} concluídas, {unidadeAtual.classesAndamento} em andamento
-                </span>
+        {/* Gráficos e Progresso */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Progresso de Classes e Especialidades</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-1"><span className="text-sm font-medium">Progresso Geral da Classe</span><span className="text-sm text-muted-foreground">{unidadeAtual.classesAndamento} de {unidadeAtual.classesTotal} requisitos iniciados</span></div>
+                <Progress value={progressoClasseGeral} className="h-2"/>
               </div>
-              <Progress
-                value={
-                  (unidadeAtual.classesConcluidas / (unidadeAtual.classesConcluidas + unidadeAtual.classesAndamento)) *
-                  100
-                }
-                className="h-2"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium">Especialidades</span>
-                <span className="text-sm text-muted-foreground">
-                  {unidadeAtual.especialidadesConcluidas} concluídas, {unidadeAtual.especialidadesAndamento} em
-                  andamento
-                </span>
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div className="p-4 bg-gray-50 rounded-lg text-center"><p className="text-sm font-medium flex items-center justify-center gap-2"><BookOpen className="h-4 w-4"/>Faltantes</p><p className="text-2xl font-bold">{classesFaltantes}</p></div>
+                <div className="p-4 bg-yellow-50 rounded-lg text-center"><p className="text-sm font-medium flex items-center justify-center gap-2"><AlertTriangle className="h-4 w-4"/>Em Atraso</p><p className="text-2xl font-bold">{unidadeAtual.classesAtraso}</p></div>
               </div>
-              <Progress
-                value={
-                  (unidadeAtual.especialidadesConcluidas /
-                    (unidadeAtual.especialidadesConcluidas + unidadeAtual.especialidadesAndamento)) *
-                  100
-                }
-                className="h-2"
-              />
-            </div>
-
-            <div className="pt-4 border-t">
-              <h4 className="font-medium mb-2">Distribuição de Membros</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Desbravadores</span>
-                  <Badge variant="secondary">{unidadeAtual.desbravadores}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Conselheiros</span>
-                  <Badge variant="secondary">{unidadeAtual.conselheiros}</Badge>
-                </div>
+              <div>
+                <div className="flex justify-between items-center mb-2"><span className="text-sm font-medium">Especialidades</span><span className="text-sm text-muted-foreground">{unidadeAtual.especialidadesConcluidas} concluídas, {unidadeAtual.especialidadesAndamento} em andamento</span></div>
+                <Progress value={(unidadeAtual.especialidadesConcluidas / (unidadeAtual.especialidadesConcluidas + unidadeAtual.especialidadesAndamento)) * 100} className="h-2"/>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Próximas Atividades</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {unidadeAtual.proximasAtividades.map((atividade, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{atividade.nome}</span>
-                  </div>
-                  <span className="text-sm text-muted-foreground">
-                    {new Date(atividade.data).toLocaleDateString("pt-BR")}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 pt-4 border-t">
-              <h4 className="font-medium mb-3">Membros em Destaque</h4>
-              <div className="space-y-2">
-                {unidadeAtual.membrosDestaque.map((membro, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-green-50 rounded">
-                    <span className="font-medium">{membro.nome}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {membro.motivo}
-                    </Badge>
-                  </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Próximas Atividades</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {unidadeAtual.proximasAtividades.map((atividade, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                      <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{atividade.nome}</span></div>
+                      <span className="text-sm text-muted-foreground">{new Date(atividade.data).toLocaleDateString("pt-BR")}</span>
+                    </div>
                 ))}
               </div>
+              <div className="mt-6 pt-4 border-t">
+                <h4 className="font-medium mb-3">Membros em Destaque</h4>
+                <div className="space-y-2">
+                  {unidadeAtual.membrosDestaque.map((membro, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-green-50 rounded">
+                        <span className="font-medium">{membro.nome}</span>
+                        <Badge variant="outline" className="text-xs">{membro.motivo}</Badge>
+                      </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Estatísticas Mensais */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Evolução Mensal</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2"><h4 className="font-medium">Janeiro 2025</h4><div className="space-y-1 text-sm"><div className="flex justify-between"><span>Presença:</span><span className="font-medium">{unidadeAtual.estatisticasMensais.janeiro.presenca}%</span></div><div className="flex justify-between"><span>Especialidades:</span><span className="font-medium">{unidadeAtual.estatisticasMensais.janeiro.especialidades}</span></div><div className="flex justify-between"><span>Classes:</span><span className="font-medium">{unidadeAtual.estatisticasMensais.janeiro.classes}</span></div></div></div>
+              <div className="space-y-2"><h4 className="font-medium">Dezembro 2024</h4><div className="space-y-1 text-sm"><div className="flex justify-between"><span>Presença:</span><span className="font-medium">{unidadeAtual.estatisticasMensais.dezembro.presenca}%</span></div><div className="flex justify-between"><span>Especialidades:</span><span className="font-medium">{unidadeAtual.estatisticasMensais.dezembro.especialidades}</span></div><div className="flex justify-between"><span>Classes:</span><span className="font-medium">{unidadeAtual.estatisticasMensais.dezembro.classes}</span></div></div></div>
+              <div className="space-y-2"><h4 className="font-medium">Novembro 2024</h4><div className="space-y-1 text-sm"><div className="flex justify-between"><span>Presença:</span><span className="font-medium">{unidadeAtual.estatisticasMensais.novembro.presenca}%</span></div><div className="flex justify-between"><span>Especialidades:</span><span className="font-medium">{unidadeAtual.estatisticasMensais.novembro.especialidades}</span></div><div className="flex justify-between"><span>Classes:</span><span className="font-medium">{unidadeAtual.estatisticasMensais.novembro.classes}</span></div></div></div>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Estatísticas Mensais */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Evolução Mensal</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <h4 className="font-medium">Janeiro 2025</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Presença:</span>
-                  <span className="font-medium">{unidadeAtual.estatisticasMensais.janeiro.presenca}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Especialidades:</span>
-                  <span className="font-medium">{unidadeAtual.estatisticasMensais.janeiro.especialidades}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Classes:</span>
-                  <span className="font-medium">{unidadeAtual.estatisticasMensais.janeiro.classes}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="font-medium">Dezembro 2024</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Presença:</span>
-                  <span className="font-medium">{unidadeAtual.estatisticasMensais.dezembro.presenca}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Especialidades:</span>
-                  <span className="font-medium">{unidadeAtual.estatisticasMensais.dezembro.especialidades}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Classes:</span>
-                  <span className="font-medium">{unidadeAtual.estatisticasMensais.dezembro.classes}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="font-medium">Novembro 2024</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Presença:</span>
-                  <span className="font-medium">{unidadeAtual.estatisticasMensais.novembro.presenca}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Especialidades:</span>
-                  <span className="font-medium">{unidadeAtual.estatisticasMensais.novembro.especialidades}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Classes:</span>
-                  <span className="font-medium">{unidadeAtual.estatisticasMensais.novembro.classes}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Resumo de Atos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Atos Registrados</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4">
-            <div className="text-3xl font-bold text-green-600 mb-2">{unidadeAtual.atosRegistrados}</div>
-            <p className="text-muted-foreground">Atos registrados este mês</p>
-          </div>
-          <div className="grid gap-2 md:grid-cols-2 mt-4">
-            <div className="p-3 bg-blue-50 rounded text-center">
-              <div className="font-medium">Especialidades Concluídas</div>
-              <div className="text-2xl font-bold text-blue-600">4</div>
-            </div>
-            <div className="p-3 bg-green-50 rounded text-center">
-              <div className="font-medium">Classes Investidas</div>
-              <div className="text-2xl font-bold text-green-600">2</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
   )
 }
