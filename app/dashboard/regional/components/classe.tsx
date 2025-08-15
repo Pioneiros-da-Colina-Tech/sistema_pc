@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-import { Check, RotateCcw, ShieldQuestion } from "lucide-react"
+import { Check, RotateCcw, ShieldQuestion, Award } from "lucide-react"
 
 // --- Dados Mockados para Simulação ---
 const unidadesMock = [
@@ -31,7 +31,7 @@ const requisitosClassesMock = [
 const avaliacaoClassesMock = [
     { id: 1, id_unidade: 1, id_requisito: 101, codigo_sgc: "12345", status: "Aprovado" },
     { id: 2, id_unidade: 1, id_requisito: 102, codigo_sgc: "12345", status: "Avaliação" },
-    { id: 3, id_unidade: 1, id_requisito: 101, codigo_sgc: "54321", status: "Avaliação" },
+    { id: 3, id_unidade: 1, id_requisito: 201, codigo_sgc: "12345", status: "Avaliação" },
     { id: 4, id_unidade: 2, id_requisito: 301, codigo_sgc: "67890", status: "Aprovado" },
     { id: 5, id_unidade: 2, id_requisito: 302, codigo_sgc: "67890", status: "Refazer" },
 ]
@@ -54,6 +54,10 @@ export default function Classe() {
             }
             return [...prev, { id: Date.now(), id_unidade: unidadeSelecionadaId, id_requisito, codigo_sgc, status: novoStatus }];
         });
+    }
+
+    const handleAprovarMembro = (codigo_sgc: string) => {
+        alert(`Membro ${codigo_sgc} aprovado na classe!`);
     }
 
     return (
@@ -86,9 +90,21 @@ export default function Classe() {
                 const requisitosParaAvaliar = requisitosDaUnidade.filter(req => ["Avaliação", "Refazer"].includes(getStatus(req.id)));
                 const requisitosAprovados = requisitosDaUnidade.filter(req => getStatus(req.id) === "Aprovado");
 
+                const todosRequisitosAprovados = requisitosDaUnidade.length > 0 && requisitosAprovados.length === requisitosDaUnidade.length;
+
+
                 return (
                     <Card key={membro.id}>
-                        <CardHeader><CardTitle>{membro.nome}</CardTitle></CardHeader>
+                        <CardHeader>
+                            <div className="flex justify-between items-center">
+                                <CardTitle>{membro.nome}</CardTitle>
+                                {todosRequisitosAprovados && (
+                                    <Button size="sm" onClick={() => handleAprovarMembro(membro.codigo_sgc)}>
+                                        <Award className="h-4 w-4 mr-2" /> Aprovar Membro na Classe
+                                    </Button>
+                                )}
+                            </div>
+                        </CardHeader>
                         <CardContent className="space-y-4">
                             {requisitosParaAvaliar.length > 0 && (
                                 <div className="space-y-2">

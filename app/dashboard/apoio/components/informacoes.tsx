@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { FileText, MessageSquare, Calendar, Download, Users, MapPin, Phone } from "lucide-react"
+import { FileText, MessageSquare, Calendar, Download, Inbox } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -22,6 +22,11 @@ const datasAvaliacoes = [
 const arquivosManuais = [
     { id: 1, nome: "Manual do Desbravador Atualizado", tipo: "PDF", tamanho: "3.1MB" },
     { id: 2, nome: "Regulamento de Uniformes 2025", tipo: "PDF", tamanho: "1.8MB" },
+]
+
+const minhasMensagensMock = [
+    { id: 1, assunto: "Dúvida sobre o Camporee", dataEnvio: "2025-08-11", mensagem: "Olá, Pastor! Gostaríamos de confirmar se o local do Camporee permanece o mesmo.", resposta: "Sim, o local está confirmado! Abraços.", dataResposta: "2025-08-12", autorResposta: "Pastor Regional" },
+    { id: 2, assunto: "Inscrição de novo membro", dataEnvio: "2025-08-14", mensagem: "Bom dia! Estamos com um novo membro que precisa ser cadastrado. Qual o procedimento?", resposta: null },
 ]
 // --- Fim dos Dados Mockados ---
 
@@ -80,6 +85,36 @@ export default function InformacoesTab() {
                         <Button>Enviar Mensagem</Button>
                     </CardContent>
                 </Card>
+
+                {/* Novo Card de Minhas Mensagens */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Inbox/> Minhas Mensagens Enviadas</CardTitle>
+                        <CardDescription>Acompanhe suas conversas com a regional.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {minhasMensagensMock.map(msg => (
+                            <div key={msg.id} className="p-4 border rounded-lg">
+                                <h4 className="font-semibold">{msg.assunto}</h4>
+                                <p className="text-xs text-muted-foreground">Enviado em {new Date(msg.dataEnvio).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+                                <p className="text-sm mt-2 italic">"{msg.mensagem}"</p>
+
+                                <div className="mt-3 pt-3 border-t">
+                                    {msg.resposta ? (
+                                        <div className="bg-green-50 p-3 rounded-md">
+                                            <p className="text-sm font-semibold text-green-800">Resposta de {msg.autorResposta}:</p>
+                                            <p className="text-xs text-muted-foreground">Respondido em {new Date(msg.dataResposta!).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+                                            <p className="text-sm mt-1 text-green-700">{msg.resposta}</p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">Aguardando resposta...</p>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+
                 <Card>
                     <CardHeader>
                         <CardTitle>Arquivos e Manuais</CardTitle>
