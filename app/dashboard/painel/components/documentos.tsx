@@ -5,16 +5,16 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { FileCheck2, FileClock, FileX2, FileQuestion, Upload } from "lucide-react"
+import { FileCheck2, FileClock, FileX2, FileQuestion, Upload, AlertCircle } from "lucide-react"
 
-// --- Dados Mockados ---
+// --- Dados Mockados Atualizados ---
 const todosDocumentos = ["RG", "CPF", "Comprovante de Residência", "Cartão do Sus", "Carteirinha do convênio"];
 
-const meusDocumentosMock = {
-    "RG": "aprovado",
-    "CPF": "aprovado",
-    "Comprovante de Residência": "aguardando-avaliacao",
-    "Cartão do Sus": "reprovado"
+const meusDocumentosMock: { [key: string]: { status: string; motivo?: string } } = {
+    "RG": { status: "aprovado" },
+    "CPF": { status: "aprovado" },
+    "Comprovante de Residência": { status: "aguardando-avaliacao" },
+    "Cartão do Sus": { status: "reprovado", motivo: "Documento ilegível. Por favor, envie uma imagem mais nítida." }
 };
 // --- Fim dos Dados Mockados ---
 
@@ -28,7 +28,8 @@ export default function DocumentosTab() {
             </CardHeader>
             <CardContent className="space-y-3">
                 {todosDocumentos.map(doc => {
-                    const status = meusDocumentosMock[doc as keyof typeof meusDocumentosMock] || "faltante";
+                    const docInfo = meusDocumentosMock[doc];
+                    const status = docInfo?.status || "faltante";
 
                     const getIcon = () => {
                         switch(status) {
@@ -54,6 +55,16 @@ export default function DocumentosTab() {
                                     {status.replace('-', ' ')}
                                 </Badge>
                             </div>
+
+                            {status === 'reprovado' && docInfo.motivo && (
+                                <div className="mt-3 pt-3 border-t text-sm text-red-600 flex items-center gap-2">
+                                    <AlertCircle className="h-4 w-4"/>
+                                    <div>
+                                        <span className="font-semibold">Motivo da reprovação:</span> {docInfo.motivo}
+                                    </div>
+                                </div>
+                            )}
+
                             {(status === 'faltante' || status === 'reprovado') && (
                                 <div className="mt-4 pt-4 border-t space-y-2">
                                     <Label htmlFor={`upload-${doc.replace(/\s+/g, '-')}`} className="text-sm font-medium">
