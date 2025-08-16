@@ -7,11 +7,11 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Users, Plus, Upload, Trash2, Search, Filter, ArrowLeft, FileCheck2, FileX2, Check, X, Download } from "lucide-react"
+import { Users, Plus, Upload, Trash2, Search, Filter, ArrowLeft, FileCheck2, FileX2, Check, X, Download, Eye, AlertCircle } from "lucide-react"
 
 // --- Tipos e Dados Mockados ---
 type DocumentoStatus = "aprovado" | "aguardando-avaliacao" | "reprovado";
-type Documentos = { [key: string]: DocumentoStatus };
+type Documentos = { [key: string]: { status: DocumentoStatus; url?: string; motivoReprovacao?: string } };
 
 type Membro = {
     id: number;
@@ -28,13 +28,26 @@ const todosDocumentos = ["RG", "CPF", "Comprovante de Residência", "Cartão do 
 
 const membrosMock: Membro[] = [
     { id: 1, nome: "João Silva", cpf: "123.456.789-00", codigo_sgc: "12345", unidade: "Jaguar", cargo: "Desbravador", nascimento: "2010-05-15",
-        documentos: { "RG": "aprovado", "CPF": "aprovado", "Comprovante de Residência": "aprovado", "Cartão do Sus": "aprovado", "Carteirinha do convênio": "aprovado" }
+        documentos: {
+            "RG": { status: "aprovado", url: "/path/to/doc.pdf" },
+            "CPF": { status: "aprovado", url: "/path/to/doc.pdf" },
+            "Comprovante de Residência": { status: "aprovado", url: "/path/to/doc.pdf" },
+            "Cartão do Sus": { status: "aprovado", url: "/path/to/doc.pdf" },
+            "Carteirinha do convênio": { status: "aprovado", url: "/path/to/doc.pdf" }
+        }
     },
     { id: 2, nome: "Maria Santos", cpf: "987.654.321-00", codigo_sgc: "54321", unidade: "Jaguar", cargo: "Conselheiro", nascimento: "1995-08-20",
-        documentos: { "RG": "aprovado", "CPF": "aguardando-avaliacao" }
+        documentos: {
+            "RG": { status: "aprovado", url: "/path/to/doc.pdf" },
+            "CPF": { status: "aguardando-avaliacao", url: "/path/to/doc.pdf" }
+        }
     },
     { id: 3, nome: "Pedro Costa", cpf: "111.222.333-44", codigo_sgc: "67890", unidade: "Gato do Mato", cargo: "Desbravador", nascimento: "2011-03-10",
-        documentos: { "RG": "aprovado", "CPF": "reprovado", "Comprovante de Residência": "aguardando-avaliacao" }
+        documentos: {
+            "RG": { status: "aprovado", url: "/path/to/doc.pdf" },
+            "CPF": { status: "reprovado", url: "/path/to/doc.pdf", motivoReprovacao: "Documento ilegível." },
+            "Comprovante de Residência": { status: "aguardando-avaliacao", url: "/path/to/doc.pdf" }
+        }
     },
 ]
 // --- Fim dos Dados Mockados ---
@@ -43,6 +56,8 @@ function MembroForm({ membro, onSave, onBack }: { membro?: Membro | null; onSave
     const [formData, setFormData] = useState<Partial<Membro>>(
         membro || { nome: "", cpf: "", codigo_sgc: "", nascimento: "", unidade: "Jaguar", cargo: "Desbravador", documentos: {} }
     );
+    const [reprovingDoc, setReprovingDoc] = useState<string | null>(null);
+    const [reprovalReason, setReprovalReason] = useState("");
     const isNew = !membro;
 
     const handleSave = () => {
@@ -53,14 +68,16 @@ function MembroForm({ membro, onSave, onBack }: { membro?: Membro | null; onSave
         }
     };
 
-    const handleDocStatusChange = (docName: string, status: DocumentoStatus) => {
+    const handleDocStatusChange = (docName: string, status: DocumentoStatus, reason?: string) => {
         setFormData(prev => ({
             ...prev,
             documentos: {
                 ...prev.documentos,
-                [docName]: status
+                [docName]: { ...prev.documentos?.[docName], status, motivoReprovacao: reason || undefined }
             }
         }));
+        setReprovingDoc(null);
+        setReprovalReason("");
     };
 
     return (
@@ -89,22 +106,38 @@ function MembroForm({ membro, onSave, onBack }: { membro?: Membro | null; onSave
                     <h4 className="font-semibold mb-4">Documentos</h4>
                     <div className="space-y-2 mb-4">
                         {todosDocumentos.map(doc => {
-                            const status = formData.documentos?.[doc];
+                            const docInfo = formData.documentos?.[doc];
+                            const status = docInfo?.status;
+
                             return (
-                                <div key={doc} className="flex items-center justify-between p-2 border rounded-md">
-                                    <div className="flex items-center gap-3">
-                                        <p>{doc}</p>
-                                        {status && <Badge variant={status === 'aprovado' ? 'default' : status === 'reprovado' ? 'destructive' : 'secondary'}>{status.replace('-', ' ')}</Badge>}
+                                <div key={doc} className="p-3 border rounded-md">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <p>{doc}</p>
+                                            {status && <Badge variant={status === 'aprovado' ? 'default' : status === 'reprovado' ? 'destructive' : 'secondary'}>{status.replace('-', ' ')}</Badge>}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            {status === 'aguardando-avaliacao' && (
+                                                <>
+                                                    <Button size="sm" variant="outline"><Eye className="h-4 w-4 mr-2"/>Ver Documento</Button>
+                                                    <Button size="sm" variant="outline" className="bg-green-100 text-green-800 hover:bg-green-200" onClick={() => handleDocStatusChange(doc, 'aprovado')}><Check className="h-4 w-4 mr-2"/>Aprovar</Button>
+                                                    <Button size="sm" variant="outline" className="bg-red-100 text-red-800 hover:bg-red-200" onClick={() => setReprovingDoc(doc)}><X className="h-4 w-4 mr-2"/>Reprovar</Button>
+                                                </>
+                                            )}
+                                            {status === 'aprovado' && <Button size="sm" variant="outline"><Download className="h-4 w-4 mr-2"/>Baixar</Button>}
+                                        </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        {status === 'aguardando-avaliacao' && (
-                                            <>
-                                                <Button size="sm" variant="outline" className="bg-green-100 text-green-800 hover:bg-green-200" onClick={() => handleDocStatusChange(doc, 'aprovado')}><Check className="h-4 w-4 mr-2"/>Aprovar</Button>
-                                                <Button size="sm" variant="outline" className="bg-red-100 text-red-800 hover:bg-red-200" onClick={() => handleDocStatusChange(doc, 'reprovado')}><X className="h-4 w-4 mr-2"/>Reprovar</Button>
-                                            </>
-                                        )}
-                                        {status === 'aprovado' && <Button size="sm" variant="outline"><Download className="h-4 w-4 mr-2"/>Baixar</Button>}
-                                    </div>
+                                    {docInfo?.motivoReprovacao && (
+                                        <p className="text-sm text-red-600 mt-2">Motivo da reprovação: {docInfo.motivoReprovacao}</p>
+                                    )}
+                                    {reprovingDoc === doc && (
+                                        <div className="mt-4 pt-4 border-t space-y-2">
+                                            <Label htmlFor={`reason-${doc}`}>Motivo da Reprovação</Label>
+                                            <Input id={`reason-${doc}`} value={reprovalReason} onChange={(e) => setReprovalReason(e.target.value)} placeholder="Descreva o motivo..."/>
+                                            <Button size="sm" onClick={() => handleDocStatusChange(doc, 'reprovado', reprovalReason)}>Confirmar Reprovação</Button>
+                                            <Button size="sm" variant="ghost" onClick={() => setReprovingDoc(null)}>Cancelar</Button>
+                                        </div>
+                                    )}
                                 </div>
                             )
                         })}
@@ -130,8 +163,8 @@ function DocumentosFaltantesView({ membros, onBack, onEdit }: { membros: Membro[
                 </div>
             </CardHeader>
             <CardContent className="space-y-3">
-                {membros.filter(m => !todosDocumentos.every(doc => m.documentos[doc] === 'aprovado')).map(membro => {
-                    const docsNaoAprovados = todosDocumentos.filter(doc => membro.documentos[doc] !== 'aprovado');
+                {membros.filter(m => !todosDocumentos.every(doc => m.documentos[doc]?.status === 'aprovado')).map(membro => {
+                    const docsNaoAprovados = todosDocumentos.filter(doc => membro.documentos[doc]?.status !== 'aprovado');
                     return(
                         <Card key={membro.id} className="p-4 bg-amber-50">
                             <div className="flex justify-between items-center">
@@ -140,7 +173,7 @@ function DocumentosFaltantesView({ membros, onBack, onEdit }: { membros: Membro[
                             </div>
                             <ul className="list-disc pl-5 mt-2 text-sm text-muted-foreground">
                                 {docsNaoAprovados.map(doc => {
-                                    const status = membro.documentos[doc];
+                                    const status = membro.documentos[doc]?.status;
                                     return <li key={doc}>{doc} <Badge variant="outline" className="ml-2">{status ? status.replace('-', ' ') : 'Faltante'}</Badge></li>
                                 })}
                             </ul>
@@ -174,6 +207,17 @@ export default function MembrosTab() {
         handleBack();
     };
 
+    const getDocumentStatusForMember = (membro: Membro) => {
+        const totalDocs = todosDocumentos.length;
+        const docsAprovados = todosDocumentos.filter(doc => membro.documentos[doc]?.status === 'aprovado').length;
+        if (docsAprovados === totalDocs) return { text: "Completo", icon: <FileCheck2 className="h-4 w-4 text-green-600"/>, color: "text-green-600" };
+
+        const temPendente = todosDocumentos.some(doc => membro.documentos[doc]?.status === 'aguardando-avaliacao' || membro.documentos[doc]?.status === 'reprovado' || !membro.documentos[doc]);
+        if (temPendente) return { text: "Pendente", icon: <AlertCircle className="h-4 w-4 text-amber-600"/>, color: "text-amber-600" };
+
+        return { text: "Status Desconhecido", icon: <FileX2 className="h-4 w-4 text-gray-500"/>, color: "text-gray-500" };
+    }
+
     const membrosFiltrados = membros.filter((membro) => {
         const matchesSearch = membro.nome.toLowerCase().includes(searchTerm.toLowerCase()) || membro.cpf.includes(searchTerm) || membro.codigo_sgc.includes(searchTerm);
         const matchesUnidade = filtroUnidade === "todas" || membro.unidade === filtroUnidade;
@@ -181,7 +225,7 @@ export default function MembrosTab() {
         return matchesSearch && matchesUnidade && matchesTipo;
     });
 
-    const docsCompletos = membros.filter(m => todosDocumentos.every(doc => m.documentos[doc] === 'aprovado')).length;
+    const docsCompletos = membros.filter(m => todosDocumentos.every(doc => m.documentos[doc]?.status === 'aprovado')).length;
     const docsFaltantes = membros.length - docsCompletos;
 
     if (viewMode === 'missingDocs') {
@@ -199,7 +243,10 @@ export default function MembrosTab() {
                 <div className="grid gap-4 md:grid-cols-3"><Card className="p-4 text-center"><Users className="h-6 w-6 mx-auto mb-2 text-blue-600"/><p className="text-2xl font-bold">{membros.length}</p><p className="text-sm text-muted-foreground">Membros Ativos</p></Card><Card className="p-4 text-center"><FileCheck2 className="h-6 w-6 mx-auto mb-2 text-green-600"/><p className="text-2xl font-bold">{docsCompletos}</p><p className="text-sm text-muted-foreground">Docs 100%</p></Card><Card className="p-4 text-center hover:bg-amber-50 cursor-pointer" onClick={() => setViewMode('missingDocs')}><FileX2 className="h-6 w-6 mx-auto mb-2 text-amber-600"/><p className="text-2xl font-bold">{docsFaltantes}</p><p className="text-sm text-muted-foreground">Docs Pendentes</p></Card></div>
                 <div className="flex gap-2 pt-4 border-t"><Button onClick={handleNewClick}><Plus className="h-4 w-4 mr-2" />Novo Membro</Button><Button variant="outline"><Upload className="h-4 w-4 mr-2" />Importar</Button></div>
                 <div className="grid gap-4 md:grid-cols-4"><div className="relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" /></div><Select value={filtroUnidade} onValueChange={setFiltroUnidade}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todas">Todas Unidades</SelectItem><SelectItem value="Jaguar">Jaguar</SelectItem><SelectItem value="Gato do Mato">Gato do Mato</SelectItem></SelectContent></Select><Select value={filtroTipo} onValueChange={setFiltroTipo}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos Cargos</SelectItem><SelectItem value="Desbravador">Desbravador</SelectItem><SelectItem value="Conselheiro">Conselheiro</SelectItem></SelectContent></Select><Button variant="outline" onClick={() => { setSearchTerm(""); setFiltroUnidade("todas"); setFiltroTipo("todos"); }}><Filter className="h-4 w-4 mr-2" /> Limpar</Button></div>
-                <div className="space-y-3">{membrosFiltrados.map((membro) => (<Card key={membro.id} className="p-4"><div className="flex items-center justify-between"><div className="space-y-1"><p className="font-medium">{membro.nome}</p><div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground"><span>CPF: {membro.cpf}</span><span>SGC: {membro.codigo_sgc}</span><span>Unidade: {membro.unidade}</span><Badge variant="secondary">{membro.cargo}</Badge></div></div><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => handleEditClick(membro)}>Editar</Button><Button size="sm" variant="destructive"><Trash2 className="h-4 w-4" /></Button></div></div></Card>))}</div>
+                <div className="space-y-3">{membrosFiltrados.map((membro) => {
+                    const docStatus = getDocumentStatusForMember(membro);
+                    return (<Card key={membro.id} className="p-4"><div className="flex items-center justify-between"><div className="space-y-1"><p className="font-medium">{membro.nome}</p><div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground"><span>CPF: {membro.cpf}</span><span>SGC: {membro.codigo_sgc}</span><span>Unidade: {membro.unidade}</span><Badge variant="secondary">{membro.cargo}</Badge><span className={`flex items-center gap-1 font-semibold ${docStatus.color}`}>{docStatus.icon} {docStatus.text}</span></div></div><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => handleEditClick(membro)}>Editar</Button><Button size="sm" variant="destructive"><Trash2 className="h-4 w-4" /></Button></div></div></Card>)
+                })}</div>
             </CardContent>
         </Card>
     )

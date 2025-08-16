@@ -4,7 +4,9 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Check, X, ArrowRight, CornerDownLeft } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label" // <-- CORREÇÃO AQUI
+import { Check, X, ArrowRight, CornerDownLeft, AlertCircle } from "lucide-react"
 
 // --- Tipos e Dados Mockados ---
 type StatusSolicitacao = "pendente" | "aprovado" | "entregue" | "devolvido" | "reprovado";
@@ -15,6 +17,7 @@ type Solicitacao = {
     unidade: string;
     status: StatusSolicitacao;
     itens: { nome: string; quantidade: number }[];
+    motivoReprovacao?: string; // Novo campo
 };
 
 const reunioesMock = [
@@ -32,11 +35,15 @@ const initialSolicitacoes: Solicitacao[] = [
 
 export default function SolicitacoesTab() {
     const [solicitacoes, setSolicitacoes] = useState(initialSolicitacoes);
+    const [reprovingId, setReprovingId] = useState<number | null>(null);
+    const [reprovalReason, setReprovalReason] = useState("");
 
-    const handleStatusChange = (solicitacaoId: number, novoStatus: StatusSolicitacao) => {
+    const handleStatusChange = (solicitacaoId: number, novoStatus: StatusSolicitacao, motivo?: string) => {
         setSolicitacoes(prev =>
-            prev.map(s => s.id === solicitacaoId ? { ...s, status: novoStatus } : s)
+            prev.map(s => s.id === solicitacaoId ? { ...s, status: novoStatus, motivoReprovacao: motivo } : s)
         );
+        setReprovingId(null);
+        setReprovalReason("");
     };
 
     const solicitacoesAgrupadas = solicitacoes.reduce((acc, sol) => {
@@ -57,7 +64,7 @@ export default function SolicitacoesTab() {
                 return (
                     <>
                         <Button size="sm" variant="outline" onClick={() => handleStatusChange(solicitacao.id, 'aprovado')}><Check className="h-4 w-4 mr-2"/>Aprovar</Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleStatusChange(solicitacao.id, 'reprovado')}><X className="h-4 w-4 mr-2"/>Reprovar</Button>
+                        <Button size="sm" variant="destructive" onClick={() => setReprovingId(solicitacao.id)}><X className="h-4 w-4 mr-2"/>Reprovar</Button>
                     </>
                 );
             case 'aprovado':
@@ -96,9 +103,32 @@ export default function SolicitacoesTab() {
                                             {sol.status}
                                         </Badge>
                                     </div>
-                                    <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-                                        {renderActionButtons(sol)}
-                                    </div>
+
+                                    {sol.status === 'reprovado' && sol.motivoReprovacao && (
+                                        <div className="mt-3 pt-3 border-t text-sm text-red-600 flex items-center gap-2">
+                                            <AlertCircle className="h-4 w-4"/>
+                                            <div>
+                                                <span className="font-semibold">Motivo da reprovação:</span> {sol.motivoReprovacao}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {reprovingId !== sol.id && (
+                                        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+                                            {renderActionButtons(sol)}
+                                        </div>
+                                    )}
+
+                                    {reprovingId === sol.id && (
+                                        <div className="mt-4 pt-4 border-t space-y-2">
+                                            <Label htmlFor={`reason-${sol.id}`}>Motivo da Reprovação</Label>
+                                            <Input id={`reason-${sol.id}`} value={reprovalReason} onChange={(e) => setReprovalReason(e.target.value)} placeholder="Descreva o motivo..."/>
+                                            <div className="flex justify-end gap-2">
+                                                <Button size="sm" variant="ghost" onClick={() => setReprovingId(null)}>Cancelar</Button>
+                                                <Button size="sm" variant="destructive" onClick={() => handleStatusChange(sol.id, 'reprovado', reprovalReason)}>Confirmar Reprovação</Button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </CardContent>
