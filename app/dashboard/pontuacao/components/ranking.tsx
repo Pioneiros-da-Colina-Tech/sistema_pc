@@ -28,9 +28,17 @@ const createRankingPorCategoria = (categoria: 'presenca' | 'pontualidade' | 'uni
     return Object.entries(ranking).sort((a, b) => b[1] - a[1]);
 }
 
+interface RankingProps {
+    filtroAno: string;
+    filtroSemestre: string;
+}
 
-export default function Ranking() {
+export default function Ranking({ filtroAno, filtroSemestre }: RankingProps) {
     const [filtroCargo, setFiltroCargo] = useState("todos")
+
+    // A lógica de filtragem por ano e semestre seria aplicada aqui,
+    // buscando os dados da API com base nos filtros recebidos.
+    // Por enquanto, usamos os dados mockados.
 
     const rankingUnidades = pontuacoesMock.reduce((acc, curr) => {
         const total = curr.presenca + curr.pontualidade + curr.uniforme + curr.modestia + curr.bonus

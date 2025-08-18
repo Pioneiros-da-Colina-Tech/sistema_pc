@@ -1,18 +1,18 @@
 "use client"
 
-import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Award, BookOpen, FileText } from "lucide-react"
+import { Award, BookOpen } from "lucide-react"
 
-// Importe o novo componente
+// Importe os componentes
 import EspecialidadesTab from "./components/especialidades"
 import ClassesTab from "./components/classes"
 import MestradosTab from "./components/mestrados"
 import EventosTab from "./components/eventos"
 import FinanceiroTab from "./components/financeiro"
 import AlterarSenhaTab from "./components/alterar-senha"
-import DocumentosTab from "./components/documentos" // <-- IMPORTAR NOVO COMPONENTE
+import DocumentosTab from "./components/documentos"
+import RematriculaTab from "./components/rematricula" // <-- NOVO COMPONENTE IMPORTADO
 
 // Mock data para os cards de resumo
 const minhasClassesMock = [
@@ -43,11 +43,12 @@ export default function PainelPage() {
             </div>
 
             <Tabs defaultValue="especialidades" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-7"> {/* <-- ALTERAR PARA grid-cols-7 */}
+                <TabsList className="grid w-full grid-cols-8"> {/* <-- ALTERADO PARA grid-cols-8 */}
                     <TabsTrigger value="especialidades">Especialidades</TabsTrigger>
                     <TabsTrigger value="classes">Classes</TabsTrigger>
                     <TabsTrigger value="mestrados">Mestrados</TabsTrigger>
-                    <TabsTrigger value="documentos">Documentos</TabsTrigger> {/* <-- NOVA ABA */}
+                    <TabsTrigger value="documentos">Documentos</TabsTrigger>
+                    <TabsTrigger value="rematricula">Rematrícula</TabsTrigger> {/* <-- NOVA ABA */}
                     <TabsTrigger value="eventos">Eventos</TabsTrigger>
                     <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
                     <TabsTrigger value="alterar-senha">Alterar senha</TabsTrigger>
@@ -56,7 +57,8 @@ export default function PainelPage() {
                 <TabsContent value="especialidades"><EspecialidadesTab /></TabsContent>
                 <TabsContent value="classes"><ClassesTab /></TabsContent>
                 <TabsContent value="mestrados"><MestradosTab /></TabsContent>
-                <TabsContent value="documentos"><DocumentosTab /></TabsContent> {/* <-- CONTEÚDO DA NOVA ABA */}
+                <TabsContent value="documentos"><DocumentosTab /></TabsContent>
+                <TabsContent value="rematricula"><RematriculaTab /></TabsContent> {/* <-- CONTEÚDO DA NOVA ABA */}
                 <TabsContent value="eventos"><EventosTab /></TabsContent>
                 <TabsContent value="financeiro"><FinanceiroTab /></TabsContent>
                 <TabsContent value="alterar-senha"><AlterarSenhaTab /></TabsContent>
