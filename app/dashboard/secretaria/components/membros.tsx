@@ -7,11 +7,13 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Users, Plus, Upload, Trash2, Search, Filter, ArrowLeft, FileCheck2, FileX2, Check, X, Download, Eye, AlertCircle } from "lucide-react"
+import { Users, Plus, Upload, Trash2, Search, Filter, ArrowLeft, FileCheck2, FileX2, Check, X, Download, Eye, AlertCircle, UserCheck } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 
 // --- Tipos e Dados Mockados ---
 type DocumentoStatus = "aprovado" | "aguardando-avaliacao" | "reprovado";
 type Documentos = { [key: string]: { status: DocumentoStatus; url?: string; motivoReprovacao?: string } };
+type MembroStatus = "ativo" | "inativo";
 
 type Membro = {
     id: number;
@@ -22,12 +24,14 @@ type Membro = {
     cargo: string;
     nascimento: string;
     documentos: Documentos;
+    status: MembroStatus;
+    rematricula_preenchida: boolean;
 };
 
 const todosDocumentos = ["RG", "CPF", "Comprovante de Residência", "Cartão do Sus", "Carteirinha do convênio"];
 
 const membrosMock: Membro[] = [
-    { id: 1, nome: "João Silva", cpf: "123.456.789-00", codigo_sgc: "12345", unidade: "Jaguar", cargo: "Desbravador", nascimento: "2010-05-15",
+    { id: 1, nome: "João Silva", cpf: "123.456.789-00", codigo_sgc: "12345", unidade: "Jaguar", cargo: "Desbravador", nascimento: "2010-05-15", status: "ativo", rematricula_preenchida: true,
         documentos: {
             "RG": { status: "aprovado", url: "/path/to/doc.pdf" },
             "CPF": { status: "aprovado", url: "/path/to/doc.pdf" },
@@ -36,13 +40,13 @@ const membrosMock: Membro[] = [
             "Carteirinha do convênio": { status: "aprovado", url: "/path/to/doc.pdf" }
         }
     },
-    { id: 2, nome: "Maria Santos", cpf: "987.654.321-00", codigo_sgc: "54321", unidade: "Jaguar", cargo: "Conselheiro", nascimento: "1995-08-20",
+    { id: 2, nome: "Maria Santos", cpf: "987.654.321-00", codigo_sgc: "54321", unidade: "Jaguar", cargo: "Conselheiro", nascimento: "1995-08-20", status: "ativo", rematricula_preenchida: false,
         documentos: {
             "RG": { status: "aprovado", url: "/path/to/doc.pdf" },
             "CPF": { status: "aguardando-avaliacao", url: "/path/to/doc.pdf" }
         }
     },
-    { id: 3, nome: "Pedro Costa", cpf: "111.222.333-44", codigo_sgc: "67890", unidade: "Gato do Mato", cargo: "Desbravador", nascimento: "2011-03-10",
+    { id: 3, nome: "Pedro Costa", cpf: "111.222.333-44", codigo_sgc: "67890", unidade: "Gato do Mato", cargo: "Desbravador", nascimento: "2011-03-10", status: "inativo", rematricula_preenchida: true,
         documentos: {
             "RG": { status: "aprovado", url: "/path/to/doc.pdf" },
             "CPF": { status: "reprovado", url: "/path/to/doc.pdf", motivoReprovacao: "Documento ilegível." },
@@ -54,7 +58,7 @@ const membrosMock: Membro[] = [
 
 function MembroForm({ membro, onSave, onBack }: { membro?: Membro | null; onSave: (membroData: Partial<Membro>) => void; onBack: () => void }) {
     const [formData, setFormData] = useState<Partial<Membro>>(
-        membro || { nome: "", cpf: "", codigo_sgc: "", nascimento: "", unidade: "Jaguar", cargo: "Desbravador", documentos: {} }
+        membro || { nome: "", cpf: "", codigo_sgc: "", nascimento: "", unidade: "Jaguar", cargo: "Desbravador", documentos: {}, status: "ativo" }
     );
     const [reprovingDoc, setReprovingDoc] = useState<string | null>(null);
     const [reprovalReason, setReprovalReason] = useState("");
@@ -92,10 +96,11 @@ function MembroForm({ membro, onSave, onBack }: { membro?: Membro | null; onSave
                 </div>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="space-y-2"><Label>Nome</Label><Input value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})}/></div>
                     <div className="space-y-2"><Label>CPF</Label><Input value={formData.cpf} onChange={e => setFormData({...formData, cpf: e.target.value})}/></div>
                     <div className="space-y-2"><Label>SGC</Label><Input value={formData.codigo_sgc} onChange={e => setFormData({...formData, codigo_sgc: e.target.value})}/></div>
+                    <div className="space-y-2"><Label>Status</Label><Select value={formData.status} onValueChange={(value: MembroStatus) => setFormData({...formData, status: value})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="ativo">Ativo</SelectItem><SelectItem value="inativo">Inativo</SelectItem></SelectContent></Select></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2"><Label>Nascimento</Label><Input type="date" value={formData.nascimento} onChange={e => setFormData({...formData, nascimento: e.target.value})}/></div>
@@ -185,12 +190,56 @@ function DocumentosFaltantesView({ membros, onBack, onEdit }: { membros: Membro[
     )
 }
 
+function RematriculasView({ membros, onBack, onEdit }: { membros: Membro[]; onBack: () => void; onEdit: (membro: Membro) => void; }) {
+    const [membrosAtivos, setMembrosAtivos] = useState<number[]>(membros.filter(m => m.status === 'ativo').map(m => m.id));
+
+    const handleAtivarChange = (memberId: number, isChecked: boolean) => {
+        if (isChecked) {
+            setMembrosAtivos(prev => [...prev, memberId]);
+        } else {
+            setMembrosAtivos(prev => prev.filter(id => id !== memberId));
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex items-center gap-4">
+                    <Button variant="outline" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4"/></Button>
+                    <div><CardTitle>Rematrículas</CardTitle><CardDescription>Ative os membros para o ano atual após revisar as informações.</CardDescription></div>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {membros.filter(m => m.rematricula_preenchida).map(membro => (
+                    <Card key={membro.id} className="p-4">
+                        <div className="flex justify-between items-center">
+                            <h4 className="font-semibold">{membro.nome}</h4>
+                            <div className="flex items-center gap-4">
+                                <Button size="sm" variant="outline" onClick={() => onEdit(membro)}>Revisar Dados</Button>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={`ativo-${membro.id}`}
+                                        checked={membrosAtivos.includes(membro.id)}
+                                        onCheckedChange={(checked) => handleAtivarChange(membro.id, !!checked)}
+                                    />
+                                    <Label htmlFor={`ativo-${membro.id}`}>Ativo para o ano</Label>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                ))}
+            </CardContent>
+        </Card>
+    )
+}
+
+
 export default function MembrosTab() {
     const [membros, setMembros] = useState(membrosMock);
     const [searchTerm, setSearchTerm] = useState("");
     const [filtroUnidade, setFiltroUnidade] = useState("todas");
     const [filtroTipo, setFiltroTipo] = useState("todos");
-    const [viewMode, setViewMode] = useState<'list' | 'edit' | 'new' | 'missingDocs'>('list');
+    const [viewMode, setViewMode] = useState<'list' | 'edit' | 'new' | 'missingDocs' | 'rematriculas'>('list');
     const [membroSelecionado, setMembroSelecionado] = useState<Membro | null>(null);
 
     const handleEditClick = (membro: Membro) => { setMembroSelecionado(membro); setViewMode('edit'); };
@@ -227,9 +276,14 @@ export default function MembrosTab() {
 
     const docsCompletos = membros.filter(m => todosDocumentos.every(doc => m.documentos[doc]?.status === 'aprovado')).length;
     const docsFaltantes = membros.length - docsCompletos;
+    const rematriculasFeitas = membros.filter(m => m.rematricula_preenchida).length;
 
     if (viewMode === 'missingDocs') {
         return <DocumentosFaltantesView membros={membros} onBack={handleBack} onEdit={handleEditClick} />;
+    }
+
+    if (viewMode === 'rematriculas') {
+        return <RematriculasView membros={membros} onBack={handleBack} onEdit={handleEditClick} />;
     }
 
     if (viewMode === 'edit' || viewMode === 'new') {
@@ -240,12 +294,12 @@ export default function MembrosTab() {
         <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Users /> Gerenciar Membros</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3"><Card className="p-4 text-center"><Users className="h-6 w-6 mx-auto mb-2 text-blue-600"/><p className="text-2xl font-bold">{membros.length}</p><p className="text-sm text-muted-foreground">Membros Ativos</p></Card><Card className="p-4 text-center"><FileCheck2 className="h-6 w-6 mx-auto mb-2 text-green-600"/><p className="text-2xl font-bold">{docsCompletos}</p><p className="text-sm text-muted-foreground">Docs 100%</p></Card><Card className="p-4 text-center hover:bg-amber-50 cursor-pointer" onClick={() => setViewMode('missingDocs')}><FileX2 className="h-6 w-6 mx-auto mb-2 text-amber-600"/><p className="text-2xl font-bold">{docsFaltantes}</p><p className="text-sm text-muted-foreground">Docs Pendentes</p></Card></div>
+                <div className="grid gap-4 md:grid-cols-4"><Card className="p-4 text-center"><Users className="h-6 w-6 mx-auto mb-2 text-blue-600"/><p className="text-2xl font-bold">{membros.length}</p><p className="text-sm text-muted-foreground">Membros Ativos</p></Card><Card className="p-4 text-center"><FileCheck2 className="h-6 w-6 mx-auto mb-2 text-green-600"/><p className="text-2xl font-bold">{docsCompletos}</p><p className="text-sm text-muted-foreground">Docs 100%</p></Card><Card className="p-4 text-center hover:bg-amber-50 cursor-pointer" onClick={() => setViewMode('missingDocs')}><FileX2 className="h-6 w-6 mx-auto mb-2 text-amber-600"/><p className="text-2xl font-bold">{docsFaltantes}</p><p className="text-sm text-muted-foreground">Docs Pendentes</p></Card><Card className="p-4 text-center hover:bg-blue-50 cursor-pointer" onClick={() => setViewMode('rematriculas')}><UserCheck className="h-6 w-6 mx-auto mb-2 text-indigo-600"/><p className="text-2xl font-bold">{rematriculasFeitas}</p><p className="text-sm text-muted-foreground">Rematrículas</p></Card></div>
                 <div className="flex gap-2 pt-4 border-t"><Button onClick={handleNewClick}><Plus className="h-4 w-4 mr-2" />Novo Membro</Button><Button variant="outline"><Upload className="h-4 w-4 mr-2" />Importar</Button></div>
                 <div className="grid gap-4 md:grid-cols-4"><div className="relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" /></div><Select value={filtroUnidade} onValueChange={setFiltroUnidade}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todas">Todas Unidades</SelectItem><SelectItem value="Jaguar">Jaguar</SelectItem><SelectItem value="Gato do Mato">Gato do Mato</SelectItem></SelectContent></Select><Select value={filtroTipo} onValueChange={setFiltroTipo}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos Cargos</SelectItem><SelectItem value="Desbravador">Desbravador</SelectItem><SelectItem value="Conselheiro">Conselheiro</SelectItem></SelectContent></Select><Button variant="outline" onClick={() => { setSearchTerm(""); setFiltroUnidade("todas"); setFiltroTipo("todos"); }}><Filter className="h-4 w-4 mr-2" /> Limpar</Button></div>
                 <div className="space-y-3">{membrosFiltrados.map((membro) => {
                     const docStatus = getDocumentStatusForMember(membro);
-                    return (<Card key={membro.id} className="p-4"><div className="flex items-center justify-between"><div className="space-y-1"><p className="font-medium">{membro.nome}</p><div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground"><span>CPF: {membro.cpf}</span><span>SGC: {membro.codigo_sgc}</span><span>Unidade: {membro.unidade}</span><Badge variant="secondary">{membro.cargo}</Badge><span className={`flex items-center gap-1 font-semibold ${docStatus.color}`}>{docStatus.icon} {docStatus.text}</span></div></div><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => handleEditClick(membro)}>Editar</Button><Button size="sm" variant="destructive"><Trash2 className="h-4 w-4" /></Button></div></div></Card>)
+                    return (<Card key={membro.id} className="p-4"><div className="flex items-center justify-between"><div className="space-y-1"><p className="font-medium">{membro.nome}</p><div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground"><span>CPF: {membro.cpf}</span><span>SGC: {membro.codigo_sgc}</span><span>Unidade: {membro.unidade}</span><Badge variant="secondary">{membro.cargo}</Badge><Badge variant={membro.status === 'ativo' ? 'default' : 'destructive'}>{membro.status}</Badge><span className={`flex items-center gap-1 font-semibold ${docStatus.color}`}>{docStatus.icon} {docStatus.text}</span></div></div><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => handleEditClick(membro)}>Editar</Button><Button size="sm" variant="destructive"><Trash2 className="h-4 w-4" /></Button></div></div></Card>)
                 })}</div>
             </CardContent>
         </Card>
