@@ -33,6 +33,11 @@ interface MembroData {
     nomeCompleto: string;
     codigoSGC: string;
     cpf: string;
+    // --- Novos Campos de Documentação ---
+    rg: string;
+    orgaoExpedidor: string;
+    dataEmissaoRg: string;
+    // ------------------------------------
     dataNascimento: string;
     telefone: string;
     cep: string;
@@ -52,12 +57,16 @@ interface MembroData {
 // --- Dados Iniciais (Mock) ---
 const membroMock: MembroData & { responsaveis: Responsavel[] } = {
     // Foto
-    fotoPerfilUrl: null, // "https://github.com/shadcn.png" para testar com foto
+    fotoPerfilUrl: null,
     // Dados Pessoais
     nomeCompleto: "João Silva de Oliveira",
     codigoSGC: "12345",
     cpf: "123.456.789-00",
-    dataNascimento: "2010-05-15", // Data simulando menor de idade
+    rg: "12.345.678-X",
+    orgaoExpedidor: "SSP/SP",
+    dataEmissaoRg: "2018-05-20",
+    // Datas
+    dataNascimento: "2010-05-15",
     telefone: "(11) 98765-4321",
     // Endereço
     cep: "01234-567",
@@ -88,17 +97,26 @@ export default function RematriculaTab() {
 
     // --- Lógica de Negócio ---
 
-    // Calcular idade
+    // 1. Lógica do Preview da Foto
+    const handleFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Cria uma URL temporária para exibir a imagem imediatamente
+            const previewUrl = URL.createObjectURL(file);
+            setDados(prev => ({ ...prev, fotoPerfilUrl: previewUrl }));
+        }
+    };
+
+    // 2. Calcular idade
     const hoje = new Date();
     const nascimento = new Date(dados.dataNascimento);
     const idade = hoje.getFullYear() - nascimento.getFullYear();
-    // Ajuste fino para mês/dia (opcional, mas recomendado)
     const m = hoje.getMonth() - nascimento.getMonth();
     const idadeExata = (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) ? idade - 1 : idade;
 
     const isMenorDeIdade = idadeExata < 18;
 
-    // Manipulação de Responsáveis
+    // 3. Manipulação de Responsáveis
     const adicionarResponsavel = () => {
         if (responsaveis.length < 4) {
             setResponsaveis([...responsaveis, { id: Date.now(), nome: "", telefone: "", grau: "" }]);
@@ -113,17 +131,19 @@ export default function RematriculaTab() {
         setResponsaveis(responsaveis.map(r => r.id === id ? { ...r, [field]: value } : r));
     }
 
-    // Simulação de busca de CEP
+    // 4. Simulação de busca de CEP
     const handleBuscaCep = () => {
         if(dados.cep.length >= 8) {
-            alert(`Buscando dados para o CEP: ${dados.cep}... (Integre sua API aqui)`);
+            alert(`Buscando dados para o CEP: ${dados.cep}...`);
         } else {
             alert("Digite um CEP válido");
         }
     }
 
-    // Simulação de Envio
+    // 5. Simulação de Envio
     const handleSubmit = () => {
+        // Nota: O campo 'dados.fotoPerfilUrl' aqui contém apenas o preview (blob:).
+        // Em um envio real, você enviaria o objeto 'file' via FormData.
         console.log("Enviando dados:", { ...dados, responsaveis, aceiteTermos, aceiteLgpd });
         alert("Rematrícula enviada com sucesso!");
     }
@@ -138,7 +158,7 @@ export default function RematriculaTab() {
             <CardContent className="space-y-8">
 
                 {/* ----------------------------------------------------------------
-                   1. FOTO DE PERFIL
+                   1. FOTO DE PERFIL (Com Preview Funcional)
                 ---------------------------------------------------------------- */}
                 <div className="flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
                     <div className="relative group cursor-pointer">
@@ -151,7 +171,13 @@ export default function RematriculaTab() {
                         </div>
                         <div className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-2 rounded-full shadow-lg hover:bg-primary/90 transition-colors">
                             <Camera className="h-5 w-5" />
-                            <Input type="file" className="hidden" id="foto-upload" accept="image/*" />
+                            <Input
+                                type="file"
+                                className="hidden"
+                                id="foto-upload"
+                                accept="image/*"
+                                onChange={handleFotoChange} // <--- Evento Adicionado
+                            />
                         </div>
                     </div>
                     <Label htmlFor="foto-upload" className="mt-3 text-sm font-medium text-muted-foreground cursor-pointer hover:text-primary transition-colors">
@@ -161,10 +187,12 @@ export default function RematriculaTab() {
                 </div>
 
                 {/* ----------------------------------------------------------------
-                   2. DADOS PESSOAIS (Leitura)
+                   2. DADOS PESSOAIS
                 ---------------------------------------------------------------- */}
                 <div className="space-y-4">
                     <h3 className="font-semibold text-lg border-b pb-2">Dados Pessoais</h3>
+
+                    {/* Linha 1: Dados fixos/vazados do sistema */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <Label>Nome Completo</Label>
@@ -179,15 +207,45 @@ export default function RematriculaTab() {
                             <Input value={dados.cpf} disabled className="bg-muted text-muted-foreground" />
                         </div>
                     </div>
+
+                    {/* Linha 2: Dados editáveis do RG */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="rg">RG</Label>
+                            <Input
+                                id="rg"
+                                value={dados.rg}
+                                onChange={(e) => setDados({...dados, rg: e.target.value})}
+                                placeholder="00.000.000-0"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="orgao">Órgão Expedidor</Label>
+                            <Input
+                                id="orgao"
+                                value={dados.orgaoExpedidor}
+                                onChange={(e) => setDados({...dados, orgaoExpedidor: e.target.value})}
+                                placeholder="Ex: SSP/SP"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="data_emissao_rg">Data de Emissão (RG)</Label>
+                            <Input
+                                id="data_emissao_rg"
+                                type="date"
+                                value={dados.dataEmissaoRg}
+                                onChange={(e) => setDados({...dados, dataEmissaoRg: e.target.value})}
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 {/* ----------------------------------------------------------------
-                   3. ENDEREÇO E CONTATO (Grid)
+                   3. ENDEREÇO E CONTATO
                 ---------------------------------------------------------------- */}
                 <div className="space-y-4">
                     <h3 className="font-semibold text-lg border-b pb-2">Endereço e Contato</h3>
 
-                    {/* Linha do Telefone */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="telefone">Celular / WhatsApp (Principal)</Label>
@@ -195,9 +253,7 @@ export default function RematriculaTab() {
                         </div>
                     </div>
 
-                    {/* Grid do Endereço */}
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-2">
-                        {/* CEP */}
                         <div className="md:col-span-3 space-y-2">
                             <Label htmlFor="cep">CEP</Label>
                             <div className="flex gap-2">
@@ -207,32 +263,22 @@ export default function RematriculaTab() {
                                 </Button>
                             </div>
                         </div>
-
-                        {/* Logradouro */}
                         <div className="md:col-span-7 space-y-2">
                             <Label htmlFor="logradouro">Rua / Logradouro</Label>
                             <Input id="logradouro" value={dados.logradouro} onChange={(e) => setDados({...dados, logradouro: e.target.value})}/>
                         </div>
-
-                        {/* Número */}
                         <div className="md:col-span-2 space-y-2">
                             <Label htmlFor="numero">Número</Label>
                             <Input id="numero" value={dados.numero} onChange={(e) => setDados({...dados, numero: e.target.value})}/>
                         </div>
-
-                        {/* Complemento */}
                         <div className="md:col-span-4 space-y-2">
                             <Label htmlFor="complemento">Complemento</Label>
                             <Input id="complemento" placeholder="Apto, Bloco..." value={dados.complemento} onChange={(e) => setDados({...dados, complemento: e.target.value})}/>
                         </div>
-
-                        {/* Bairro */}
                         <div className="md:col-span-4 space-y-2">
                             <Label htmlFor="bairro">Bairro</Label>
                             <Input id="bairro" value={dados.bairro} onChange={(e) => setDados({...dados, bairro: e.target.value})}/>
                         </div>
-
-                        {/* Cidade e UF */}
                         <div className="md:col-span-3 space-y-2">
                             <Label htmlFor="cidade">Cidade</Label>
                             <Input id="cidade" value={dados.cidade} disabled className="bg-muted"/>
@@ -323,7 +369,7 @@ export default function RematriculaTab() {
                 </div>
 
                 {/* ----------------------------------------------------------------
-                   5. RESPONSÁVEIS (Aparece apenas se < 18 anos)
+                   5. RESPONSÁVEIS
                 ---------------------------------------------------------------- */}
                 {isMenorDeIdade && (
                     <div className="space-y-4">
@@ -383,7 +429,6 @@ export default function RematriculaTab() {
                     </div>
 
                     <div className="space-y-4 p-2">
-                        {/* Checkbox 1: Veracidade */}
                         <div className="flex items-start space-x-3">
                             <Checkbox
                                 id="termos_veracidade"
@@ -400,7 +445,6 @@ export default function RematriculaTab() {
                             </div>
                         </div>
 
-                        {/* Checkbox 2: LGPD e Uso de Imagem */}
                         <div className="flex items-start space-x-3">
                             <Checkbox
                                 id="termos_lgpd"
