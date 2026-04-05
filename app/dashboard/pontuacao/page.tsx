@@ -1,16 +1,28 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import Ranking from "./components/ranking"
 import Bonus from "./components/bonus"
+import { clubYearsApi } from "@/lib/api"
 
 export default function PontuacaoPage() {
-    const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString())
+    const [anosDisponiveis, setAnosDisponiveis] = useState<string[]>([])
+    const [filtroAno, setFiltroAno] = useState("")
     const [filtroSemestre, setFiltroSemestre] = useState("1")
+
+    useEffect(() => {
+        clubYearsApi.list().then((res) => {
+            const anos = res.data
+                .map((cy) => cy.id_)
+                .sort((a, b) => b.localeCompare(a))
+            setAnosDisponiveis(anos)
+            if (anos.length > 0) setFiltroAno(anos[0])
+        }).catch(console.error)
+    }, [])
 
     return (
         <div className="space-y-6">
@@ -28,14 +40,14 @@ export default function PontuacaoPage() {
                 <CardContent className="flex items-center gap-4">
                     <div className="w-40">
                         <Label>Ano</Label>
-                        <Select value={filtroAno} onValueChange={setFiltroAno}>
+                        <Select value={filtroAno} onValueChange={setFiltroAno} disabled={anosDisponiveis.length === 0}>
                             <SelectTrigger>
-                                <SelectValue />
+                                <SelectValue placeholder={anosDisponiveis.length === 0 ? "Carregando..." : "Selecione"} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="2025">2025</SelectItem>
-                                <SelectItem value="2024">2024</SelectItem>
-                                <SelectItem value="2023">2023</SelectItem>
+                                {anosDisponiveis.map((ano) => (
+                                    <SelectItem key={ano} value={ano}>{ano}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
@@ -60,7 +72,10 @@ export default function PontuacaoPage() {
                     <TabsTrigger value="bonus">Lançar Bônus</TabsTrigger>
                 </TabsList>
                 <TabsContent value="ranking">
-                    <Ranking filtroAno={filtroAno} filtroSemestre={filtroSemestre} />
+                    {filtroAno
+                        ? <Ranking filtroAno={filtroAno} filtroSemestre={filtroSemestre} />
+                        : <p className="text-sm text-muted-foreground py-4">Selecione um ano para ver o ranking.</p>
+                    }
                 </TabsContent>
                 <TabsContent value="bonus">
                     <Bonus />

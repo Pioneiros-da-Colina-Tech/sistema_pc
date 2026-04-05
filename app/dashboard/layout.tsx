@@ -1,20 +1,19 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import {
   CalendarDays,
-  ClipboardPen, // Corrigido de ClipboardUser
+  ClipboardPen,
   Shield,
   LayoutDashboard,
   User,
   DollarSign,
-  LifeBuoy,
   ClipboardCheck,
   Star,
   Archive,
@@ -23,10 +22,11 @@ import {
   X,
   Award
 } from "lucide-react"
+import { isAuthenticated, removeToken } from "@/lib/api"
 
 const menuItems = [
   { href: "/dashboard/reunioes", label: "Reuniões", icon: CalendarDays },
-  { href: "/dashboard/secretaria", label: "Secretaria", icon: ClipboardPen }, // Corrigido
+  { href: "/dashboard/secretaria", label: "Secretaria", icon: ClipboardPen },
   { href: "/dashboard/unidade", label: "Unidade", icon: Shield },
   { href: "/dashboard/dashboard-unidade", label: "Dashboard Unidade", icon: LayoutDashboard },
   { href: "/dashboard/painel", label: "Meu Painel", icon: User },
@@ -38,12 +38,24 @@ const menuItems = [
 ]
 
 export default function DashboardLayout({
-                                          children,
-                                        }: {
+  children,
+}: {
   children: React.ReactNode
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.replace("/")
+    }
+  }, [router])
+
+  const handleLogout = () => {
+    removeToken()
+    router.replace("/")
+  }
 
   return (
       <div className="flex h-screen bg-gray-100">
@@ -81,12 +93,14 @@ export default function DashboardLayout({
 
             <Separator className="my-4" />
 
-            <Link href="/">
-              <Button variant="ghost" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sair
-              </Button>
-            </Link>
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sair
+            </Button>
           </ScrollArea>
         </div>
 

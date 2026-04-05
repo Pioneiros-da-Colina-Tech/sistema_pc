@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,114 +8,146 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle } from "lucide-react"
+import { heritageApi, meetingsApi, unitsApi, type HeritageItemAPI, type HeritageRequestAPI, type MeetingAPI, type UnitAPI } from "@/lib/api"
 
-// --- Dados Mockados ---
-const patrimonioMock = [
-    { id: 1, nome: "Barraca Iglú 4 Pessoas", quantidadeTotal: 5 },
-    { id: 2, nome: "Corda de Sisal 10mm", quantidadeTotal: 2 },
-    { id: 3, nome: "Bússola Profissional", quantidadeTotal: 10 },
-    { id: 4, nome: "Caixa de Primeiros Socorros", quantidadeTotal: 3 },
-]
-
-const reunioesMock = [
-    { id: 1, nome: "Reunião Geral", data: "2025-01-25" },
-    { id: 2, nome: "Treinamento de Liderança", data: "2025-02-10" },
-    { id: 3, nome: "Acampamento de Unidade", data: "2025-03-15" },
-]
-
-// Simula solicitações já feitas para diferentes reuniões
-const solicitacoesExistentesMock = [
-    { reuniaoId: 1, itemId: 1, quantidade: 2 }, // 2 barracas para Reunião Geral
-    { reuniaoId: 3, itemId: 1, quantidade: 4 }, // 4 barracas para Acampamento
-    { reuniaoId: 3, itemId: 2, quantidade: 1 }, // 1 corda para Acampamento
-]
-
-// Simula o histórico de solicitações do usuário logado
-const minhasSolicitacoesMock = [
-    { id: 101, reuniaoId: 1, status: "aprovado", itens: [{ nome: "Barraca Iglú 4 Pessoas", quantidade: 2 }] },
-    { id: 102, reuniaoId: 3, status: "reprovado", motivoReprovacao: "Quantidade de barracas indisponível para a data.", itens: [{ nome: "Barraca Iglú 4 Pessoas", quantidade: 4 }, { nome: "Corda de Sisal 10mm", quantidade: 1 }] },
-    { id: 103, reuniaoId: 2, status: "pendente", itens: [{ nome: "Bússola Profissional", quantidade: 10 }] },
-]
-
-// --- Fim dos Dados Mockados ---
+const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+    aprovado: "default",
+    entregue: "default",
+    devolvido: "outline",
+    pendente: "secondary",
+    reprovado: "destructive",
+}
 
 export default function SolicitarMateriaisTab() {
-    const [reuniaoSelecionadaId, setReuniaoSelecionadaId] = useState<string | undefined>();
-    const [solicitacoes, setSolicitacoes] = useState<Record<string, number>>({});
+    const [itens, setItens] = useState<HeritageItemAPI[]>([])
+    const [reunioes, setReunioes] = useState<MeetingAPI[]>([])
+    const [unidades, setUnidades] = useState<UnitAPI[]>([])
+    const [minhasSolicitacoes, setMinhasSolicitacoes] = useState<HeritageRequestAPI[]>([])
+    const [carregando, setCarregando] = useState(true)
 
-    const handleQuantidadeChange = (itemId: number, quantidade: number) => {
-        setSolicitacoes(prev => ({
-            ...prev,
-            [itemId]: quantidade,
-        }));
-    };
+    const [reuniaoId, setReuniaoId] = useState("")
+    const [unidadeId, setUnidadeId] = useState("")
+    const [quantidades, setQuantidades] = useState<Record<string, number>>({})
+    const [enviando, setEnviando] = useState(false)
+    const [erro, setErro] = useState("")
+    const [sucesso, setSucesso] = useState("")
 
-    const getQuantidadeDisponivel = (itemId: number, quantidadeTotal: number) => {
-        const jaSolicitado = solicitacoesExistentesMock
-            .filter(s => s.reuniaoId.toString() === reuniaoSelecionadaId && s.itemId === itemId)
-            .reduce((acc, curr) => acc + curr.quantidade, 0);
-        return quantidadeTotal - jaSolicitado;
-    };
+    useEffect(() => {
+        Promise.all([
+            heritageApi.listItems({ page_size: 100 }),
+            meetingsApi.list(),
+            unitsApi.list(),
+            heritageApi.listRequests(),
+        ]).then(([itemsRes, meetingsRes, unitsRes, reqRes]) => {
+            setItens(itemsRes.data.items)
+            setReunioes(meetingsRes.data)
+            setUnidades(unitsRes.data)
+            setMinhasSolicitacoes(reqRes.data)
+        }).catch(console.error).finally(() => setCarregando(false))
+    }, [])
 
-    const handleSalvarSolicitacoes = () => {
-        // Aqui você adicionaria a lógica para salvar as 'solicitacoes' no banco de dados
-        alert(`Solicitações para a reunião ID ${reuniaoSelecionadaId} salvas com sucesso!`);
-        console.log(solicitacoes);
+    const handleEnviar = async () => {
+        const itensSolicitados = Object.entries(quantidades)
+            .filter(([, qty]) => qty > 0)
+            .map(([item_id, quantity]) => ({ item_id, quantity }))
+
+        if (!reuniaoId || !unidadeId || itensSolicitados.length === 0) {
+            setErro("Selecione reunião, unidade e ao menos um item com quantidade.")
+            return
+        }
+        setErro("")
+        setSucesso("")
+        setEnviando(true)
+        try {
+            const res = await heritageApi.createRequest({
+                meeting_id: reuniaoId,
+                unit_id: unidadeId,
+                items: itensSolicitados,
+            })
+            setMinhasSolicitacoes((prev) => [res.data, ...prev])
+            setQuantidades({})
+            setReuniaoId("")
+            setUnidadeId("")
+            setSucesso("Solicitação enviada com sucesso!")
+        } catch (err) {
+            setErro(err instanceof Error ? err.message : "Erro ao enviar solicitação.")
+        } finally {
+            setEnviando(false)
+        }
     }
+
+    if (carregando) return <p className="text-sm text-muted-foreground p-4">Carregando...</p>
 
     return (
         <div className="space-y-6">
             <Card>
                 <CardHeader>
                     <CardTitle>Solicitar Material do Patrimônio</CardTitle>
-                    <CardDescription>Selecione a reunião e informe a quantidade necessária de cada item.</CardDescription>
+                    <CardDescription>Selecione a reunião, unidade e informe a quantidade necessária de cada item.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label>Primeiro, selecione a Reunião</Label>
-                        <Select onValueChange={setReuniaoSelecionadaId}>
-                            <SelectTrigger className="w-full md:w-1/2">
-                                <SelectValue placeholder="Selecione uma reunião..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {reunioesMock.map(reuniao => (
-                                    <SelectItem key={reuniao.id} value={reuniao.id.toString()}>
-                                        {reuniao.nome} ({new Date(reuniao.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' })})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>Reunião</Label>
+                            <Select value={reuniaoId} onValueChange={setReuniaoId}>
+                                <SelectTrigger><SelectValue placeholder="Selecione uma reunião..." /></SelectTrigger>
+                                <SelectContent>
+                                    {reunioes.map((r) => (
+                                        <SelectItem key={r.id_} value={r.id_}>
+                                            {r.name} — {new Date(r.date).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Unidade</Label>
+                            <Select value={unidadeId} onValueChange={setUnidadeId}>
+                                <SelectTrigger><SelectValue placeholder="Selecione a unidade..." /></SelectTrigger>
+                                <SelectContent>
+                                    {unidades.map((u) => (
+                                        <SelectItem key={u.id_} value={u.id_}>{u.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
-                    {reuniaoSelecionadaId && (
-                        <div className="pt-4 border-t">
-                            <div className="space-y-3">
-                                {patrimonioMock.map(item => {
-                                    const disponivel = getQuantidadeDisponivel(item.id, item.quantidadeTotal);
-                                    return (
-                                        <div key={item.id} className="grid grid-cols-12 gap-4 items-center p-2 border rounded-md">
-                                            <div className="col-span-6">
-                                                <p className="font-medium">{item.nome}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Total no estoque: {item.quantidadeTotal} | Disponível para esta reunião: {disponivel}
-                                                </p>
-                                            </div>
-                                            <div className="col-span-3">
-                                                <Label htmlFor={`item-${item.id}`} className="sr-only">Quantidade</Label>
-                                                <Input
-                                                    id={`item-${item.id}`}
-                                                    type="number"
-                                                    placeholder="Qtd."
-                                                    min="0"
-                                                    max={disponivel}
-                                                    onChange={(e) => handleQuantidadeChange(item.id, parseInt(e.target.value) || 0)}
-                                                />
-                                            </div>
+                    {reuniaoId && unidadeId && (
+                        <div className="pt-4 border-t space-y-3">
+                            {itens.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">Nenhum item no patrimônio.</p>
+                            ) : (
+                                itens.map((item) => (
+                                    <div key={item.id_} className="grid grid-cols-12 gap-4 items-center p-3 border rounded-md">
+                                        <div className="col-span-7">
+                                            <p className="font-medium">{item.name}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Estoque total: {item.quantity} unidades
+                                                {item.description && ` · ${item.description}`}
+                                            </p>
                                         </div>
-                                    )
-                                })}
-                            </div>
-                            <Button className="mt-6" onClick={handleSalvarSolicitacoes}>Enviar Solicitação</Button>
+                                        <div className="col-span-3">
+                                            <Input
+                                                type="number"
+                                                placeholder="Qtd."
+                                                min="0"
+                                                max={item.quantity}
+                                                value={quantidades[item.id_] ?? ""}
+                                                onChange={(e) => setQuantidades((prev) => ({
+                                                    ...prev,
+                                                    [item.id_]: parseInt(e.target.value) || 0,
+                                                }))}
+                                            />
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                            {erro && <p className="text-sm text-red-600">{erro}</p>}
+                            {sucesso && <p className="text-sm text-green-600">{sucesso}</p>}
+                            <Button onClick={handleEnviar} disabled={enviando}>
+                                {enviando ? "Enviando..." : "Enviar Solicitação"}
+                            </Button>
                         </div>
                     )}
                 </CardContent>
@@ -123,38 +155,42 @@ export default function SolicitarMateriaisTab() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Minhas Solicitações</CardTitle>
-                    <CardDescription>Acompanhe o status das suas solicitações de material.</CardDescription>
+                    <CardTitle>Solicitações Enviadas</CardTitle>
+                    <CardDescription>Acompanhe o status das suas solicitações.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {minhasSolicitacoesMock.map(sol => {
-                        const reuniao = reunioesMock.find(r => r.id === sol.reuniaoId);
-                        return (
-                            <div key={sol.id} className="border rounded-lg p-4">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h4 className="font-semibold text-md mb-2">
-                                            {reuniao?.nome} - {reuniao && new Date(reuniao.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
-                                        </h4>
-                                        <ul className="list-disc pl-5 text-sm text-muted-foreground">
-                                            {sol.itens.map(item => <li key={item.nome}>{item.nome} (Qtd: {item.quantidade})</li>)}
-                                        </ul>
-                                    </div>
-                                    <Badge variant={sol.status === 'aprovado' ? 'default' : sol.status === 'reprovado' ? 'destructive' : 'secondary'}>
-                                        {sol.status}
-                                    </Badge>
-                                </div>
-                                {sol.status === 'reprovado' && sol.motivoReprovacao && (
-                                    <div className="mt-3 pt-3 border-t text-sm text-red-600 flex items-center gap-2">
-                                        <AlertCircle className="h-4 w-4"/>
+                    {minhasSolicitacoes.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Nenhuma solicitação enviada.</p>
+                    ) : (
+                        minhasSolicitacoes.map((sol) => {
+                            const reuniao = reunioes.find((r) => r.id_ === sol.meeting_id)
+                            const unidade = unidades.find((u) => u.id_ === sol.unit_id)
+                            return (
+                                <div key={sol.id_} className="border rounded-lg p-4">
+                                    <div className="flex justify-between items-start">
                                         <div>
-                                            <span className="font-semibold">Motivo da reprovação:</span> {sol.motivoReprovacao}
+                                            <h4 className="font-semibold mb-1">
+                                                {reuniao?.name ?? sol.meeting_id}
+                                                {unidade && <span className="text-muted-foreground font-normal"> · {unidade.name}</span>}
+                                            </h4>
+                                            <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                                                {sol.items.map((item) => (
+                                                    <li key={item.id_}>{item.item_name ?? item.item_id} (Qtd: {item.quantity})</li>
+                                                ))}
+                                            </ul>
                                         </div>
+                                        <Badge variant={statusVariant[sol.status] ?? "outline"}>{sol.status}</Badge>
                                     </div>
-                                )}
-                            </div>
-                        )
-                    })}
+                                    {sol.status === "reprovado" && sol.rejection_reason && (
+                                        <div className="mt-3 pt-3 border-t text-sm text-red-600 flex items-center gap-2">
+                                            <AlertCircle className="h-4 w-4 shrink-0" />
+                                            <span><span className="font-semibold">Motivo:</span> {sol.rejection_reason}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })
+                    )}
                 </CardContent>
             </Card>
         </div>

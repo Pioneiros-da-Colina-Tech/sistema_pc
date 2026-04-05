@@ -8,17 +8,27 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, BarChart3, Calendar, Shield } from "lucide-react"
+import { authApi, setToken } from "@/lib/api"
 
 export default function HomePage() {
-  const [usuario, setUsuario] = useState("")
-  const [senha, setSenha] = useState("")
+  const [documento, setDocumento] = useState("")
+  const [nascimento, setNascimento] = useState("")
+  const [erro, setErro] = useState("")
+  const [carregando, setCarregando] = useState(false)
   const router = useRouter()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Simular login - em produção seria validação real
-    if (usuario && senha) {
+    setErro("")
+    setCarregando(true)
+    try {
+      const res = await authApi.login(documento, nascimento)
+      setToken(res.data.access_token)
       router.push("/dashboard")
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Credenciais inválidas.")
+    } finally {
+      setCarregando(false)
     }
   }
 
@@ -61,25 +71,39 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Coluna da Direita: Login com Imagem de Fundo */}
+        {/* Coluna da Direita: Login */}
         <div className="flex items-center justify-center p-6 login-background">
           <Card className="w-full max-w-sm">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl font-bold">Acesse sua conta</CardTitle>
-              <CardDescription>Insira suas credenciais para entrar no sistema.</CardDescription>
+              <CardDescription>Insira seu CPF e data de nascimento.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="usuario">Usuário</Label>
-                  <Input id="usuario" type="text" value={usuario} onChange={(e) => setUsuario(e.target.value)} required />
+                  <Label htmlFor="documento">CPF</Label>
+                  <Input
+                    id="documento"
+                    type="text"
+                    placeholder="00000000000"
+                    value={documento}
+                    onChange={(e) => setDocumento(e.target.value)}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="senha">Senha</Label>
-                  <Input id="senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} required />
+                  <Label htmlFor="nascimento">Data de Nascimento</Label>
+                  <Input
+                    id="nascimento"
+                    type="date"
+                    value={nascimento}
+                    onChange={(e) => setNascimento(e.target.value)}
+                    required
+                  />
                 </div>
-                <Button type="submit" className="w-full">
-                  Entrar
+                {erro && <p className="text-sm text-red-600">{erro}</p>}
+                <Button type="submit" className="w-full" disabled={carregando}>
+                  {carregando ? "Entrando..." : "Entrar"}
                 </Button>
               </form>
             </CardContent>

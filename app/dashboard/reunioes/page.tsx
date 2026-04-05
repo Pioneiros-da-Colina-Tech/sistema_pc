@@ -1,22 +1,36 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import NovaReuniaoTab from "./components/nova-reuniao"
 import EditarReuniaoTab from "./components/editar-reuniao"
 import ChamadaTab from "./components/chamada"
+import { meetingsApi } from "@/lib/api"
+
+export interface Reuniao {
+  id: string
+  nome: string
+  data: string
+}
 
 export default function ReuniaoPage() {
-  const [reunioes, setReunioes] = useState([
-    { id: 1, nome: "Reunião Geral", data: "2025-01-25" },
-    { id: 2, nome: "Treinamento", data: "2025-01-28" },
-  ])
+  const [reunioes, setReunioes] = useState<Reuniao[]>([])
+  const [carregando, setCarregando] = useState(true)
 
-  const membros = [
-    { id: 1, nome: "João Silva", unidade: "Jaguar", cargo: "Desbravador" },
-    { id: 2, nome: "Maria Santos", unidade: "Jaguar", cargo: "Conselheiro" },
-    { id: 3, nome: "Pedro Costa", unidade: "Gato do Mato", cargo: "Desbravador" },
-  ]
+  useEffect(() => {
+    meetingsApi
+      .list()
+      .then((res) => {
+        const mapped = res.data.map((m) => ({
+          id: m.id_,
+          nome: m.name,
+          data: m.date,
+        }))
+        setReunioes(mapped)
+      })
+      .catch(console.error)
+      .finally(() => setCarregando(false))
+  }, [])
 
   return (
       <div className="space-y-6">
@@ -25,25 +39,29 @@ export default function ReuniaoPage() {
           <p className="text-muted-foreground">Gerencie reuniões e chamadas</p>
         </div>
 
-        <Tabs defaultValue="nova" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="nova">Nova</TabsTrigger>
-            <TabsTrigger value="editar">Editar</TabsTrigger>
-            <TabsTrigger value="chamada">Chamada</TabsTrigger>
-          </TabsList>
+        {carregando ? (
+          <p className="text-muted-foreground">Carregando reuniões...</p>
+        ) : (
+          <Tabs defaultValue="nova" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="nova">Nova</TabsTrigger>
+              <TabsTrigger value="editar">Editar</TabsTrigger>
+              <TabsTrigger value="chamada">Chamada</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="nova" className="space-y-4">
-            <NovaReuniaoTab reunioes={reunioes} setReunioes={setReunioes} />
-          </TabsContent>
+            <TabsContent value="nova" className="space-y-4">
+              <NovaReuniaoTab reunioes={reunioes} setReunioes={setReunioes} />
+            </TabsContent>
 
-          <TabsContent value="editar" className="space-y-4">
-            <EditarReuniaoTab reunioes={reunioes} setReunioes={setReunioes} />
-          </TabsContent>
+            <TabsContent value="editar" className="space-y-4">
+              <EditarReuniaoTab reunioes={reunioes} setReunioes={setReunioes} />
+            </TabsContent>
 
-          <TabsContent value="chamada" className="space-y-4">
-            <ChamadaTab reunioes={reunioes} membros={membros} />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="chamada" className="space-y-4">
+              <ChamadaTab reunioes={reunioes} />
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
   )
 }

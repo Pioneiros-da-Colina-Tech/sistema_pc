@@ -1,49 +1,59 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { scoresApi, type UserRankingEntry } from "@/lib/api"
+import type { MembroUnidade } from "../page"
 
-const pontuacoesDetalhadasMock = [
-    { codigo_sgc: "12345", presenca: 40, pontualidade: 50, uniforme: 35, modestia: 40 },
-    { codigo_sgc: "54321", presenca: 48, pontualidade: 50, uniforme: 50, modestia: 50 },
-    { codigo_sgc: "67890", presenca: 45, pontualidade: 40, uniforme: 50, modestia: 50 },
-]
+export default function PontuacaoTab({ membrosDaUnidade, pontuacaoTotal }: { membrosDaUnidade: MembroUnidade[]; pontuacaoTotal: number | null }) {
+    const [ranking, setRanking] = useState<UserRankingEntry[]>([])
 
-export default function PontuacaoTab({ membrosDaUnidade, unidadeAtual }: any) {
+    useEffect(() => {
+        const currentYear = new Date().getFullYear().toString()
+        scoresApi.getRanking(currentYear, 1)
+            .then((res) => setRanking(res.data.individual))
+            .catch(console.error)
+    }, [])
+
+    const userIds = new Set(membrosDaUnidade.map((m) => m.id))
+    const membroRanking = ranking.filter((r) => userIds.has(r.user_id))
+
     return (
         <Card>
-            <CardHeader><CardTitle>Pontuação Detalhada da Unidade: {unidadeAtual?.nome}</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Pontuação Detalhada da Unidade</CardTitle></CardHeader>
             <CardContent>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="text-xs text-muted-foreground uppercase bg-muted">
-                        <tr>
-                            <th className="px-6 py-3 text-left">Membro</th>
-                            <th className="px-6 py-3 text-center">Presença</th>
-                            <th className="px-6 py-3 text-center">Pontualidade</th>
-                            <th className="px-6 py-3 text-center">Uniforme</th>
-                            <th className="px-6 py-3 text-center">Modéstia</th>
-                            <th className="px-6 py-3 text-center">Total</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {membrosDaUnidade.map((membro: any) => {
-                            const pontuacao = pontuacoesDetalhadasMock.find(p => p.codigo_sgc === membro.codigo_sgc);
-                            const total = pontuacao ? pontuacao.presenca + pontuacao.pontualidade + pontuacao.uniforme + pontuacao.modestia : 0;
-                            return (
-                                <tr key={membro.id} className="border-b">
-                                    <td className="px-6 py-4 font-medium">{membro.nome}</td>
-                                    <td className="px-6 py-4 text-center">{pontuacao?.presenca || 0}</td>
-                                    <td className="px-6 py-4 text-center">{pontuacao?.pontualidade || 0}</td>
-                                    <td className="px-6 py-4 text-center">{pontuacao?.uniforme || 0}</td>
-                                    <td className="px-6 py-4 text-center">{pontuacao?.modestia || 0}</td>
-                                    <td className="px-6 py-4 text-center font-bold text-primary">{total}</td>
+                {membroRanking.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Sem pontuação registrada para este período.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="text-xs text-muted-foreground uppercase bg-muted">
+                                <tr>
+                                    <th className="px-6 py-3 text-left">Membro</th>
+                                    <th className="px-6 py-3 text-center">Presença</th>
+                                    <th className="px-6 py-3 text-center">Pontualidade</th>
+                                    <th className="px-6 py-3 text-center">Uniforme</th>
+                                    <th className="px-6 py-3 text-center">Modéstia</th>
+                                    <th className="px-6 py-3 text-center">Bônus</th>
+                                    <th className="px-6 py-3 text-center">Total</th>
                                 </tr>
-                            )
-                        })}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody>
+                                {membroRanking.map((entry) => (
+                                    <tr key={entry.user_id} className="border-b">
+                                        <td className="px-6 py-4 font-medium">{entry.name ?? entry.document}</td>
+                                        <td className="px-6 py-4 text-center">{entry.presenca}</td>
+                                        <td className="px-6 py-4 text-center">{entry.pontualidade}</td>
+                                        <td className="px-6 py-4 text-center">{entry.uniforme}</td>
+                                        <td className="px-6 py-4 text-center">{entry.modestia}</td>
+                                        <td className="px-6 py-4 text-center">{entry.bonus}</td>
+                                        <td className="px-6 py-4 text-center font-bold text-primary">{entry.total}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </CardContent>
         </Card>
     )

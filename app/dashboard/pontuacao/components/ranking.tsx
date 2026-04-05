@@ -1,131 +1,107 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { useEffect, useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-
-// --- Dados Mockados (com a adição do campo 'bonus') ---
-const pontuacoesMock = [
-    { unidade: "Jaguar", nome: "João Silva", cargo: "Desbravador", presenca: 10, pontualidade: 10, uniforme: 5, modestia: 10, bonus: 5 },
-    { unidade: "Jaguar", nome: "Maria Santos", cargo: "Conselheiro", presenca: 8, pontualidade: 10, uniforme: 10, modestia: 10, bonus: 0 },
-    { unidade: "Gato do Mato", nome: "Pedro Costa", cargo: "Desbravador", presenca: 9, pontualidade: 8, uniforme: 10, modestia: 10, bonus: 10 },
-    { unidade: "Gato do Mato", nome: "Ana Oliveira", cargo: "Desbravador", presenca: 10, pontualidade: 10, uniforme: 10, modestia: 10, bonus: 0 },
-    { unidade: "Jaguar", nome: "Carlos Ferreira", cargo: "Diretor", presenca: 7, pontualidade: 5, uniforme: 5, modestia: 8, bonus: 2 },
-]
-
-// Função auxiliar para criar rankings por categoria
-const createRankingPorCategoria = (categoria: 'presenca' | 'pontualidade' | 'uniforme' | 'modestia') => {
-    const ranking = pontuacoesMock.reduce((acc, curr) => {
-        if (!acc[curr.unidade]) {
-            acc[curr.unidade] = 0
-        }
-        acc[curr.unidade] += curr[categoria]
-        return acc
-    }, {} as Record<string, number>)
-
-    return Object.entries(ranking).sort((a, b) => b[1] - a[1]);
-}
+import { scoresApi, type RankingAPI } from "@/lib/api"
 
 interface RankingProps {
-    filtroAno: string;
-    filtroSemestre: string;
+    filtroAno: string
+    filtroSemestre: string
 }
+
+const medals = ["🥇", "🥈", "🥉"]
 
 export default function Ranking({ filtroAno, filtroSemestre }: RankingProps) {
     const [filtroCargo, setFiltroCargo] = useState("todos")
+    const [ranking, setRanking] = useState<RankingAPI | null>(null)
+    const [carregando, setCarregando] = useState(true)
 
-    // A lógica de filtragem por ano e semestre seria aplicada aqui,
-    // buscando os dados da API com base nos filtros recebidos.
-    // Por enquanto, usamos os dados mockados.
+    useEffect(() => {
+        setCarregando(true)
+        scoresApi
+            .getRanking(filtroAno, Number(filtroSemestre))
+            .then((res) => setRanking(res.data))
+            .catch(console.error)
+            .finally(() => setCarregando(false))
+    }, [filtroAno, filtroSemestre])
 
-    const rankingUnidades = pontuacoesMock.reduce((acc, curr) => {
-        const total = curr.presenca + curr.pontualidade + curr.uniforme + curr.modestia + curr.bonus
-        if (!acc[curr.unidade]) {
-            acc[curr.unidade] = 0
-        }
-        acc[curr.unidade] += total
-        return acc
-    }, {} as Record<string, number>)
+    if (carregando) {
+        return <p className="text-muted-foreground py-4">Carregando ranking...</p>
+    }
 
-    const sortedRanking = Object.entries(rankingUnidades).sort((a, b) => b[1] - a[1])
+    if (!ranking) return null
 
-    const rankingIndividual = pontuacoesMock
-        .filter(membro => filtroCargo === "todos" || membro.cargo === filtroCargo)
-        .map((m) => ({
-            ...m,
-            total: m.presenca + m.pontualidade + m.uniforme + m.modestia + m.bonus,
-        }))
-        .sort((a, b) => b.total - a.total)
+    const { individual, units } = ranking
 
-    const cargosDisponiveis = ["todos", ...Array.from(new Set(pontuacoesMock.map(p => p.cargo)))]
+    const cargosDisponiveis = [
+        "todos",
+        ...Array.from(new Set(individual.map((e) => e.unit_role).filter(Boolean) as string[])),
+    ]
 
-    const rankingPresenca = createRankingPorCategoria("presenca");
-    const rankingPontualidade = createRankingPorCategoria("pontualidade");
-    const rankingUniforme = createRankingPorCategoria("uniforme");
-    const rankingModestia = createRankingPorCategoria("modestia");
+    const rankingIndividual = individual.filter(
+        (e) => filtroCargo === "todos" || e.unit_role === filtroCargo
+    )
 
+    const categoryRanking = (key: "presenca" | "pontualidade" | "uniforme" | "modestia") =>
+        [...units].sort((a, b) => b[key] - a[key])
 
     return (
         <div className="space-y-6">
+            {/* Unit general ranking */}
             <Card>
                 <CardHeader>
                     <CardTitle>🏆 Ranking Geral das Unidades</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {sortedRanking.map(([unidade, pontos], index) => (
-                        <Card key={unidade} className="p-4 text-center">
-                            <div className="text-2xl">
-                                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
-                            </div>
-                            <p className="text-xl font-bold">{unidade}</p>
-                            <p className="text-3xl font-semibold text-primary">{pontos}</p>
-                        </Card>
-                    ))}
+                <CardContent>
+                    {units.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Sem dados para este período.</p>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {units.map((u, i) => (
+                                <Card key={u.unit_id} className="p-4 text-center">
+                                    <div className="text-2xl">{medals[i] ?? "🎖️"}</div>
+                                    <p className="text-xl font-bold">{u.unit_name}</p>
+                                    <p className="text-3xl font-semibold text-primary">{u.total}</p>
+                                    {u.unit_bonus > 0 && (
+                                        <p className="text-xs text-muted-foreground">
+                                            inclui {u.unit_bonus} pts bônus de unidade
+                                        </p>
+                                    )}
+                                </Card>
+                            ))}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
+            {/* Per-category unit ranking */}
             <Card>
                 <CardHeader>
                     <CardTitle>📊 Ranking de Unidades por Categoria</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card>
-                        <CardHeader><CardTitle className="text-base">Presença</CardTitle></CardHeader>
-                        <CardContent className="space-y-2">
-                            {rankingPresenca.map(([unidade, pontos]) => (
-                                <div key={unidade} className="flex justify-between items-center text-sm"><Badge variant="outline">{unidade}</Badge><span className="font-semibold">{pontos}</span></div>
-                            ))}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader><CardTitle className="text-base">Pontualidade</CardTitle></CardHeader>
-                        <CardContent className="space-y-2">
-                            {rankingPontualidade.map(([unidade, pontos]) => (
-                                <div key={unidade} className="flex justify-between items-center text-sm"><Badge variant="outline">{unidade}</Badge><span className="font-semibold">{pontos}</span></div>
-                            ))}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader><CardTitle className="text-base">Uniforme</CardTitle></CardHeader>
-                        <CardContent className="space-y-2">
-                            {rankingUniforme.map(([unidade, pontos]) => (
-                                <div key={unidade} className="flex justify-between items-center text-sm"><Badge variant="outline">{unidade}</Badge><span className="font-semibold">{pontos}</span></div>
-                            ))}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader><CardTitle className="text-base">Modéstia</CardTitle></CardHeader>
-                        <CardContent className="space-y-2">
-                            {rankingModestia.map(([unidade, pontos]) => (
-                                <div key={unidade} className="flex justify-between items-center text-sm"><Badge variant="outline">{unidade}</Badge><span className="font-semibold">{pontos}</span></div>
-                            ))}
-                        </CardContent>
-                    </Card>
+                    {(["presenca", "pontualidade", "uniforme", "modestia"] as const).map((cat) => (
+                        <Card key={cat}>
+                            <CardHeader>
+                                <CardTitle className="text-base capitalize">{cat}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                {categoryRanking(cat).map((u) => (
+                                    <div key={u.unit_id} className="flex justify-between items-center text-sm">
+                                        <Badge variant="outline">{u.unit_name}</Badge>
+                                        <span className="font-semibold">{u[cat]}</span>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    ))}
                 </CardContent>
             </Card>
 
+            {/* Individual ranking */}
             <Card>
                 <CardHeader>
                     <div className="flex justify-between items-center">
@@ -133,13 +109,11 @@ export default function Ranking({ filtroAno, filtroSemestre }: RankingProps) {
                         <div className="w-64">
                             <Label>Filtrar por Cargo</Label>
                             <Select value={filtroCargo} onValueChange={setFiltroCargo}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {cargosDisponiveis.map(cargo => (
-                                        <SelectItem key={cargo} value={cargo}>
-                                            {cargo === "todos" ? "Todos os Cargos" : cargo}
+                                    {cargosDisponiveis.map((c) => (
+                                        <SelectItem key={c} value={c}>
+                                            {c === "todos" ? "Todos os Cargos" : c}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -148,38 +122,49 @@ export default function Ranking({ filtroAno, filtroSemestre }: RankingProps) {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-muted-foreground uppercase bg-muted">
-                            <tr>
-                                <th className="px-6 py-3">Nome</th>
-                                <th className="px-6 py-3">Unidade</th>
-                                <th className="px-6 py-3">Cargo</th>
-                                <th className="px-6 py-3 text-center">Presença</th>
-                                <th className="px-6 py-3 text-center">Pontualidade</th>
-                                <th className="px-6 py-3 text-center">Uniforme</th>
-                                <th className="px-6 py-3 text-center">Modéstia</th>
-                                <th className="px-6 py-3 text-center">Bônus</th>
-                                <th className="px-6 py-3 text-center">Total</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {rankingIndividual.map((membro, index) => (
-                                <tr key={index} className="border-b">
-                                    <td className="px-6 py-4 font-medium">{membro.nome}</td>
-                                    <td className="px-6 py-4"><Badge variant="outline">{membro.unidade}</Badge></td>
-                                    <td className="px-6 py-4"><Badge variant="secondary">{membro.cargo}</Badge></td>
-                                    <td className="px-6 py-4 text-center">{membro.presenca}</td>
-                                    <td className="px-6 py-4 text-center">{membro.pontualidade}</td>
-                                    <td className="px-6 py-4 text-center">{membro.uniforme}</td>
-                                    <td className="px-6 py-4 text-center">{membro.modestia}</td>
-                                    <td className="px-6 py-4 text-center">{membro.bonus}</td>
-                                    <td className="px-6 py-4 text-center font-bold text-primary">{membro.total}</td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    {rankingIndividual.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Sem dados para este período.</p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="text-xs text-muted-foreground uppercase bg-muted">
+                                    <tr>
+                                        <th className="px-4 py-3">#</th>
+                                        <th className="px-4 py-3">Nome</th>
+                                        <th className="px-4 py-3">Unidade</th>
+                                        <th className="px-4 py-3 text-center">Presença</th>
+                                        <th className="px-4 py-3 text-center">Pontualidade</th>
+                                        <th className="px-4 py-3 text-center">Uniforme</th>
+                                        <th className="px-4 py-3 text-center">Modéstia</th>
+                                        <th className="px-4 py-3 text-center">Bônus</th>
+                                        <th className="px-4 py-3 text-center">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rankingIndividual.map((entry, i) => (
+                                        <tr key={entry.user_id} className="border-b">
+                                            <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
+                                            <td className="px-4 py-3 font-medium">
+                                                {entry.name ?? entry.document}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                {entry.unit_name
+                                                    ? <Badge variant="outline">{entry.unit_name}</Badge>
+                                                    : <span className="text-xs text-muted-foreground italic">—</span>
+                                                }
+                                            </td>
+                                            <td className="px-4 py-3 text-center">{entry.presenca}</td>
+                                            <td className="px-4 py-3 text-center">{entry.pontualidade}</td>
+                                            <td className="px-4 py-3 text-center">{entry.uniforme}</td>
+                                            <td className="px-4 py-3 text-center">{entry.modestia}</td>
+                                            <td className="px-4 py-3 text-center">{entry.bonus}</td>
+                                            <td className="px-4 py-3 text-center font-bold text-primary">{entry.total}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>

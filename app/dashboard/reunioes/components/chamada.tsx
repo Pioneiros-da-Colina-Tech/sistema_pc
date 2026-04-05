@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,88 +8,122 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { MinusCircle, PlusCircle } from "lucide-react"
-
-interface Reuniao {
-    id: number;
-    nome: string;
-    data: string;
-}
-
-interface Membro {
-    id: number;
-    nome: string;
-    unidade: string;
-    cargo: string;
-}
+import { unitsApi, scoresApi, type UnitAPI, type UnitMemberAPI } from "@/lib/api"
+import type { Reuniao } from "../page"
 
 interface ChamadaTabProps {
-    reunioes: Reuniao[];
-    membros: Membro[];
+    reunioes: Reuniao[]
 }
 
 interface Pontuacao {
-    presenca: number;
-    pontualidade: number;
-    uniforme: number;
-    modestia: number;
+    presenca: number       // 10 = presente, 5 = justificado, 0 = ausente
+    pontualidade: number
+    uniforme: number
+    modestia: number
 }
 
-export default function ChamadaTab({ reunioes, membros }: ChamadaTabProps) {
+type ChamadaMap = Record<string, Pontuacao>
+
+const SCORE_STEP = 5
+const clamp = (v: number) => Math.min(10, Math.max(0, v))
+
+export default function ChamadaTab({ reunioes }: ChamadaTabProps) {
+    const [unidades, setUnidades] = useState<UnitAPI[]>([])
+    const [membros, setMembros] = useState<UnitMemberAPI[]>([])
+    const [unidadeSelecionada, setUnidadeSelecionada] = useState<string | null>(null)
     const [reuniaoSelecionada, setReuniaoSelecionada] = useState<string | null>(null)
-    const [chamada, setChamada] = useState<Record<number, Pontuacao>>({})
-    const [faltasJustificadas, setFaltasJustificadas] = useState<number[]>([]);
+    const [chamada, setChamada] = useState<ChamadaMap>({})
+    const [salvando, setSalvando] = useState(false)
+    const [erro, setErro] = useState("")
+    const [sucesso, setSucesso] = useState("")
 
-    const handlePresencaChange = (memberId: number, isPresent: boolean) => {
-        setChamada(prev => {
-            const newState = { ...prev };
+    useEffect(() => {
+        unitsApi.list().then((res) => setUnidades(res.data)).catch(console.error)
+    }, [])
+
+    useEffect(() => {
+        if (!unidadeSelecionada) return
+        setMembros([])
+        setChamada({})
+        unitsApi
+            .getMembers(unidadeSelecionada)
+            .then((res) => setMembros(res.data))
+            .catch(console.error)
+    }, [unidadeSelecionada])
+
+    const handlePresente = (userId: string, isPresent: boolean) => {
+        setChamada((prev) => {
+            const next = { ...prev }
             if (isPresent) {
-                // Se estava com falta justificada, remove
-                setFaltasJustificadas(f => f.filter(id => id !== memberId));
-                newState[memberId] = { presenca: 10, pontualidade: 10, uniforme: 10, modestia: 10 };
+                next[userId] = { presenca: 10, pontualidade: 10, uniforme: 10, modestia: 10 }
             } else {
-                delete newState[memberId];
+                delete next[userId]
             }
-            return newState;
-        });
-    };
-
-    const handleJustificadaChange = (memberId: number, isJustified: boolean) => {
-        if (isJustified) {
-            // Remove da lista de presença se estiver lá
-            setChamada(prev => {
-                const newState = { ...prev };
-                delete newState[memberId];
-                return newState;
-            });
-            setFaltasJustificadas(prev => [...prev, memberId]);
-        } else {
-            setFaltasJustificadas(prev => prev.filter(id => id !== memberId));
-        }
+            return next
+        })
     }
 
-    const handleScoreChange = (memberId: number, field: keyof Omit<Pontuacao, 'presenca'>, operation: 'add' | 'subtract') => {
-        setChamada(prev => {
-            const currentScore = prev[memberId][field];
-            let newScore;
-            if (operation === 'add') {
-                newScore = Math.min(10, currentScore + 5);
+    const handleJustificado = (userId: string, isJustified: boolean) => {
+        setChamada((prev) => {
+            const next = { ...prev }
+            if (isJustified) {
+                next[userId] = { presenca: 5, pontualidade: 10, uniforme: 10, modestia: 10 }
             } else {
-                newScore = Math.max(0, currentScore - 5);
+                delete next[userId]
             }
+            return next
+        })
+    }
+
+    const adjustScore = (
+        userId: string,
+        field: "pontualidade" | "uniforme" | "modestia",
+        delta: number
+    ) => {
+        setChamada((prev) => {
+            if (!prev[userId]) return prev
             return {
                 ...prev,
-                [memberId]: {
-                    ...prev[memberId],
-                    [field]: newScore,
-                }
+                [userId]: { ...prev[userId], [field]: clamp(prev[userId][field] + delta) },
             }
         })
     }
 
-    const getPresencaFinal = (memberId: number) => {
-        if (chamada[memberId]) return chamada[memberId].presenca;
-        if (faltasJustificadas.includes(memberId)) return 5;
-        return 0;
+    const salvarChamada = async () => {
+        if (!reuniaoSelecionada || membros.length === 0) return
+        setErro("")
+        setSucesso("")
+        setSalvando(true)
+        try {
+            const scores = membros.map((m) => {
+                const p = chamada[m.user_id]
+                return {
+                    user_id: m.user_id,
+                    presenca: p ? p.presenca : 0,
+                    pontualidade: p ? p.pontualidade : 0,
+                    uniforme: p ? p.uniforme : 0,
+                    modestia: p ? p.modestia : 0,
+                }
+            })
+            await scoresApi.submitMeetingScores(reuniaoSelecionada, scores)
+            setSucesso("Chamada salva com sucesso!")
+        } catch (err) {
+            setErro(err instanceof Error ? err.message : "Erro ao salvar chamada.")
+        } finally {
+            setSalvando(false)
+        }
+    }
+
+    const statusOf = (userId: string): "presente" | "justificado" | "ausente" => {
+        const p = chamada[userId]
+        if (!p) return "ausente"
+        return p.presenca >= 10 ? "presente" : "justificado"
+    }
+
+    const badgeVariant: Record<string, "default" | "secondary" | "destructive"> = {
+        presente: "default",
+        justificado: "secondary",
+        ausente: "destructive",
     }
 
     return (
@@ -101,95 +135,108 @@ export default function ChamadaTab({ reunioes, membros }: ChamadaTabProps) {
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                         <Label>Unidade</Label>
-                        <Select>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecione a unidade" />
-                            </SelectTrigger>
+                        <Select onValueChange={setUnidadeSelecionada}>
+                            <SelectTrigger><SelectValue placeholder="Selecione a unidade" /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="jaguar">Jaguar</SelectItem>
-                                <SelectItem value="gato-mato">Gato do Mato</SelectItem>
+                                {unidades.map((u) => (
+                                    <SelectItem key={u.id_} value={u.id_}>{u.name}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
                     <div className="space-y-2">
                         <Label>Reunião</Label>
-                        <Select onValueChange={(value) => setReuniaoSelecionada(value)}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecione a reunião" />
-                            </SelectTrigger>
+                        <Select onValueChange={setReuniaoSelecionada}>
+                            <SelectTrigger><SelectValue placeholder="Selecione a reunião" /></SelectTrigger>
                             <SelectContent>
-                                {reunioes.map((reuniao) => (
-                                    <SelectItem key={reuniao.id} value={reuniao.id.toString()}>
-                                        {reuniao.nome}
-                                    </SelectItem>
+                                {reunioes.map((r) => (
+                                    <SelectItem key={r.id} value={r.id}>{r.nome} — {r.data}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     </div>
                 </div>
 
-                {reuniaoSelecionada && (
+                {unidadeSelecionada && reuniaoSelecionada && (
                     <div className="space-y-4">
                         <h3 className="font-semibold">Lista de Presença</h3>
-                        <div className="space-y-3">
-                            {membros.map((membro) => {
-                                const isPresent = !!chamada[membro.id];
-                                const isJustified = faltasJustificadas.includes(membro.id);
 
-                                return (
-                                    <Card key={membro.id} className="p-4">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="font-medium">{membro.nome}</p>
-                                                <p className="text-sm text-muted-foreground">{membro.cargo}</p>
-                                            </div>
-                                            <div className="flex gap-4">
-                                                <div className="flex items-center space-x-2">
-                                                    <Checkbox
-                                                        id={`presenca-${membro.id}`}
-                                                        checked={isPresent}
-                                                        onCheckedChange={(checked) => handlePresencaChange(membro.id, !!checked)}
-                                                    />
-                                                    <Label htmlFor={`presenca-${membro.id}`}>Presença</Label>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <Checkbox
-                                                        id={`justificada-${membro.id}`}
-                                                        checked={isJustified}
-                                                        onCheckedChange={(checked) => handleJustificadaChange(membro.id, !!checked)}
-                                                    />
-                                                    <Label htmlFor={`justificada-${membro.id}`}>Falta Justificada</Label>
-                                                </div>
-                                            </div>
-                                        </div>
+                        {membros.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">Nenhum membro nesta unidade.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {membros.map((membro) => {
+                                    const status = statusOf(membro.user_id)
+                                    const p = chamada[membro.user_id]
+                                    const isPresente = status === "presente"
+                                    const isJustificado = status === "justificado"
 
-                                        {isPresent && (
-                                            <div className="flex gap-4 pt-4 mt-4 border-t">
-                                                <div className="flex items-center space-x-2">
-                                                    <Label>Pontualidade:</Label>
-                                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleScoreChange(membro.id, 'pontualidade', 'add')}><PlusCircle className="h-4 w-4"/></Button>
-                                                    <Badge>{chamada[membro.id].pontualidade}</Badge>
-                                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleScoreChange(membro.id, 'pontualidade', 'subtract')}><MinusCircle className="h-4 w-4"/></Button>
+                                    return (
+                                        <Card key={membro.user_id} className="p-4">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="font-medium">{membro.user_name ?? membro.user_document}</p>
+                                                    <p className="text-sm text-muted-foreground capitalize">{membro.role}</p>
                                                 </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <Label>Uniforme:</Label>
-                                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleScoreChange(membro.id, 'uniforme', 'add')}><PlusCircle className="h-4 w-4"/></Button>
-                                                    <Badge>{chamada[membro.id].uniforme}</Badge>
-                                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleScoreChange(membro.id, 'uniforme', 'subtract')}><MinusCircle className="h-4 w-4"/></Button>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <Label>Modéstia:</Label>
-                                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleScoreChange(membro.id, 'modestia', 'add')}><PlusCircle className="h-4 w-4"/></Button>
-                                                    <Badge>{chamada[membro.id].modestia}</Badge>
-                                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleScoreChange(membro.id, 'modestia', 'subtract')}><MinusCircle className="h-4 w-4"/></Button>
+                                                <div className="flex items-center gap-4">
+                                                    <Badge variant={badgeVariant[status]}>
+                                                        {status === "presente" ? "Presente" : status === "justificado" ? "Justificado" : "Ausente"}
+                                                    </Badge>
+                                                    <div className="flex items-center gap-2">
+                                                        <Checkbox
+                                                            id={`presente-${membro.user_id}`}
+                                                            checked={isPresente}
+                                                            onCheckedChange={(v) => handlePresente(membro.user_id, !!v)}
+                                                        />
+                                                        <Label htmlFor={`presente-${membro.user_id}`}>Presente</Label>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Checkbox
+                                                            id={`justi-${membro.user_id}`}
+                                                            checked={isJustificado}
+                                                            onCheckedChange={(v) => handleJustificado(membro.user_id, !!v)}
+                                                        />
+                                                        <Label htmlFor={`justi-${membro.user_id}`}>Justificado</Label>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        )}
-                                    </Card>
-                                )
-                            })}
-                        </div>
-                        <Button>Salvar chamada</Button>
+
+                                            {p && p.presenca > 0 && (
+                                                <div className="flex flex-wrap gap-6 pt-4 mt-4 border-t">
+                                                    {(["pontualidade", "uniforme", "modestia"] as const).map((field) => (
+                                                        <div key={field} className="flex items-center gap-2">
+                                                            <Label className="capitalize">{field}:</Label>
+                                                            <Button
+                                                                size="icon" variant="ghost" className="h-6 w-6"
+                                                                onClick={() => adjustScore(membro.user_id, field, SCORE_STEP)}
+                                                            >
+                                                                <PlusCircle className="h-4 w-4" />
+                                                            </Button>
+                                                            <Badge>{p[field]}</Badge>
+                                                            <Button
+                                                                size="icon" variant="ghost" className="h-6 w-6"
+                                                                onClick={() => adjustScore(membro.user_id, field, -SCORE_STEP)}
+                                                            >
+                                                                <MinusCircle className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </Card>
+                                    )
+                                })}
+                            </div>
+                        )}
+
+                        {erro && <p className="text-sm text-red-600">{erro}</p>}
+                        {sucesso && <p className="text-sm text-green-600">{sucesso}</p>}
+                        <Button
+                            onClick={salvarChamada}
+                            disabled={salvando || membros.length === 0}
+                        >
+                            {salvando ? "Salvando..." : "Salvar chamada"}
+                        </Button>
                     </div>
                 )}
             </CardContent>

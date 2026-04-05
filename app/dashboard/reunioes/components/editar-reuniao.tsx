@@ -7,30 +7,25 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Edit, Trash2 } from "lucide-react"
-
-interface Reuniao {
-    id: number;
-    nome: string;
-    data: string;
-}
+import type { Reuniao } from "../page"
 
 interface EditarReuniaoTabProps {
-    reunioes: Reuniao[];
-    setReunioes: React.Dispatch<React.SetStateAction<Reuniao[]>>;
+    reunioes: Reuniao[]
+    setReunioes: React.Dispatch<React.SetStateAction<Reuniao[]>>
 }
 
 export default function EditarReuniaoTab({ reunioes, setReunioes }: EditarReuniaoTabProps) {
     const [editandoReuniao, setEditandoReuniao] = useState<Reuniao | null>(null)
 
-    const removerReuniao = (id: number) => {
+    const removerReuniao = (id: string) => {
         setReunioes(reunioes.filter((r) => r.id !== id))
         setEditandoReuniao(null)
     }
 
     const salvarEdicao = () => {
-        if(editandoReuniao){
-            setReunioes(reunioes.map(r => r.id === editandoReuniao.id ? editandoReuniao : r));
-            setEditandoReuniao(null);
+        if (editandoReuniao) {
+            setReunioes(reunioes.map(r => r.id === editandoReuniao.id ? editandoReuniao : r))
+            setEditandoReuniao(null)
         }
     }
 
@@ -46,14 +41,16 @@ export default function EditarReuniaoTab({ reunioes, setReunioes }: EditarReunia
                 <div className="space-y-2">
                     <Label>Selecione a reunião</Label>
                     <Select
-                        onValueChange={(value) => setEditandoReuniao(reunioes.find((r) => r.id === Number.parseInt(value)) || null)}
+                        onValueChange={(value) =>
+                            setEditandoReuniao(reunioes.find((r) => r.id === value) || null)
+                        }
                     >
                         <SelectTrigger>
                             <SelectValue placeholder="Escolha uma reunião" />
                         </SelectTrigger>
                         <SelectContent>
                             {reunioes.map((reuniao) => (
-                                <SelectItem key={reuniao.id} value={reuniao.id.toString()}>
+                                <SelectItem key={reuniao.id} value={reuniao.id}>
                                     {reuniao.nome} - {reuniao.data}
                                 </SelectItem>
                             ))}
@@ -83,7 +80,11 @@ export default function EditarReuniaoTab({ reunioes, setReunioes }: EditarReunia
 
                 <div className="flex gap-2">
                     <Button onClick={salvarEdicao} disabled={!editandoReuniao}>Salvar edição</Button>
-                    <Button variant="destructive" onClick={() => editandoReuniao && removerReuniao(editandoReuniao.id)} disabled={!editandoReuniao}>
+                    <Button
+                        variant="destructive"
+                        onClick={() => editandoReuniao && removerReuniao(editandoReuniao.id)}
+                        disabled={!editandoReuniao}
+                    >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Remover reunião
                     </Button>
