@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   CalendarDays,
   ClipboardPen,
@@ -20,21 +21,37 @@ import {
   LogOut,
   Menu,
   X,
-  Award
+  Award,
+  ChevronRight,
 } from "lucide-react"
 import { isAuthenticated, removeToken } from "@/lib/api"
 
-const menuItems = [
-  { href: "/dashboard/reunioes", label: "Reuniões", icon: CalendarDays },
-  { href: "/dashboard/secretaria", label: "Secretaria", icon: ClipboardPen },
-  { href: "/dashboard/unidade", label: "Unidade", icon: Shield },
-  { href: "/dashboard/dashboard-unidade", label: "Dashboard Unidade", icon: LayoutDashboard },
-  { href: "/dashboard/painel", label: "Meu Painel", icon: User },
-  { href: "/dashboard/tesouraria", label: "Tesouraria", icon: DollarSign },
-  { href: "/dashboard/apoio", label: "Apoio Regional", icon: Award },
-  { href: "/dashboard/regional", label: "Avaliação Regional", icon: ClipboardCheck },
-  { href: "/dashboard/pontuacao", label: "Pontuação", icon: Star },
-  { href: "/dashboard/patrimonio", label: "Patrimônio", icon: Archive },
+const menuGroups = [
+  {
+    label: "Principal",
+    items: [
+      { href: "/dashboard/reunioes", label: "Reunioes", icon: CalendarDays },
+      { href: "/dashboard/painel", label: "Meu Painel", icon: User },
+    ],
+  },
+  {
+    label: "Gestao",
+    items: [
+      { href: "/dashboard/secretaria", label: "Secretaria", icon: ClipboardPen },
+      { href: "/dashboard/unidade", label: "Unidade", icon: Shield },
+      { href: "/dashboard/dashboard-unidade", label: "Dashboard Unidade", icon: LayoutDashboard },
+      { href: "/dashboard/tesouraria", label: "Tesouraria", icon: DollarSign },
+      { href: "/dashboard/patrimonio", label: "Patrimonio", icon: Archive },
+    ],
+  },
+  {
+    label: "Avaliacao",
+    items: [
+      { href: "/dashboard/apoio", label: "Apoio Regional", icon: Award },
+      { href: "/dashboard/regional", label: "Avaliacao Regional", icon: ClipboardCheck },
+      { href: "/dashboard/pontuacao", label: "Pontuacao", icon: Star },
+    ],
+  },
 ]
 
 export default function DashboardLayout({
@@ -57,71 +74,142 @@ export default function DashboardLayout({
     router.replace("/")
   }
 
+  // Get current page title
+  const getCurrentPageTitle = () => {
+    for (const group of menuGroups) {
+      for (const item of group.items) {
+        if (pathname.startsWith(item.href)) {
+          return item.label
+        }
+      }
+    }
+    return "Dashboard"
+  }
+
   return (
-      <div className="flex h-screen bg-gray-100">
-        {/* Sidebar */}
-        <div
-            className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}
-        >
-          <div className="flex items-center justify-between h-16 px-4 border-b">
-            <h1 className="text-lg font-semibold">Pioneiros da Colina</h1>
-            <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setSidebarOpen(false)}>
-              <X className="h-4 w-4" />
-            </Button>
+    <div className="flex h-screen bg-background">
+      {/* Sidebar */}
+      <aside
+        className={`${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } fixed inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-sidebar-border transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex flex-col`}
+      >
+        {/* Logo Header */}
+        <div className="flex items-center justify-between h-16 px-5 border-b border-sidebar-border">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Shield className="h-5 w-5" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-sidebar-foreground">Pioneiros da Colina</span>
+              <span className="text-xs text-muted-foreground">Sistema de Gestao</span>
+            </div>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden text-sidebar-foreground"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
 
-          <ScrollArea className="flex-1 px-3 py-4">
-            <nav className="space-y-2">
-              {menuItems.map((item) => {
-                const Icon = item.icon
-                const isActive = pathname.startsWith(item.href)
+        {/* Navigation */}
+        <ScrollArea className="flex-1 px-3 py-4">
+          <nav className="flex flex-col gap-6">
+            {menuGroups.map((group) => (
+              <div key={group.label} className="flex flex-col gap-1">
+                <span className="px-3 mb-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  {group.label}
+                </span>
+                {group.items.map((item) => {
+                  const Icon = item.icon
+                  const isActive = pathname.startsWith(item.href)
 
-                return (
-                    <Link key={item.href} href={item.href}>
-                      <Button
-                          variant={isActive ? "secondary" : "ghost"}
-                          className="w-full justify-start"
-                          onClick={() => setSidebarOpen(false)}
+                  return (
+                    <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)}>
+                      <div
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                          isActive
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                        }`}
                       >
-                        <Icon className="mr-2 h-4 w-4" />
-                        {item.label}
-                      </Button>
+                        <Icon className={`h-5 w-5 ${isActive ? "text-primary" : ""}`} />
+                        <span className="flex-1">{item.label}</span>
+                        {isActive && <ChevronRight className="h-4 w-4 text-primary" />}
+                      </div>
                     </Link>
-                )
-              })}
-            </nav>
+                  )
+                })}
+              </div>
+            ))}
+          </nav>
+        </ScrollArea>
 
-            <Separator className="my-4" />
+        {/* User Section */}
+        <div className="border-t border-sidebar-border p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Avatar className="h-10 w-10">
+              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                PC
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-sidebar-foreground truncate">Usuario</p>
+              <p className="text-xs text-muted-foreground truncate">Membro do Clube</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={handleLogout}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Sair
+          </Button>
+        </div>
+      </aside>
 
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top bar */}
+        <header className="bg-card border-b h-16 flex items-center justify-between px-4 lg:px-6">
+          <div className="flex items-center gap-4">
             <Button
               variant="ghost"
-              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={handleLogout}
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
             >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sair
+              <Menu className="h-5 w-5" />
             </Button>
-          </ScrollArea>
-        </div>
+            <div className="flex flex-col">
+              <h1 className="text-lg font-semibold text-foreground">{getCurrentPageTitle()}</h1>
+              <p className="text-xs text-muted-foreground hidden sm:block">Pioneiros da Colina</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8 lg:hidden">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                PC
+              </AvatarFallback>
+            </Avatar>
+          </div>
+        </header>
 
-        {/* Main content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Top bar */}
-          <header className="bg-white shadow-sm border-b h-16 flex items-center px-4 lg:px-6">
-            <Button variant="ghost" size="sm" className="lg:hidden mr-2" onClick={() => setSidebarOpen(true)}>
-              <Menu className="h-4 w-4" />
-            </Button>
-            <h2 className="text-xl font-semibold">Pioneiros da Colina</h2>
-          </header>
-
-          {/* Page content */}
-          <main className="flex-1 overflow-auto p-4 lg:p-6">{children}</main>
-        </div>
-
-        {/* Overlay for mobile */}
-        {sidebarOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
-        )}
+        {/* Page content */}
+        <main className="flex-1 overflow-auto p-4 lg:p-6 bg-background">{children}</main>
       </div>
+
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+    </div>
   )
 }
